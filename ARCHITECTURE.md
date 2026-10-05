@@ -56,7 +56,7 @@ src/modules/<module>/
   <module>.layer.ts  wires the module's application services to its adapters
 ```
 
-Create a layer folder only when it has content (`ingest` has no presentation). When three or more files share a role inside a layer, group them in a role subdirectory (`infrastructure/stores/`, `presentation/components/`).
+Create a module or layer folder only when it has content (`ingest` has no presentation; `profiles`, `share` and `src/runtime` appear with their first file). No `.gitkeep` placeholders. When three or more files share a role inside a layer, group them in a role subdirectory (`infrastructure/stores/`, `presentation/components/`).
 
 File names are kebab-case with a role suffix where it helps: `*.service.ts` (application service), `*.port.ts` (port), `*.error.ts` (tagged errors), `*.functions.ts` (server functions), `*.server.ts` (server-only code, kept out of the client bundle by TanStack Start import protection), `*.spec.ts(x)` (tests beside the code). Domain files are named after the concept (`scoring.ts`, `season.ts`).
 
