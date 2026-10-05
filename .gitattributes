@@ -1,0 +1,3 @@
+# Collapse generated and fixture files in GitHub diffs
+src/routeTree.gen.ts linguist-generated=true
+**/testing/fixtures/** linguist-generated=true
