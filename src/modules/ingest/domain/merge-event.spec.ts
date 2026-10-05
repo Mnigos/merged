@@ -67,6 +67,86 @@ describe('classifyMerge', () => {
 })
 
 describe('toMergeEvent', () => {
+	it('ignores a legacy merged pull request without its author', () => {
+		expect(
+			toMergeEvent(
+				pullRequestEvent({
+					actor: 'maintainer',
+					payload: {
+						action: 'closed',
+						number: 7,
+						pull_request: { merged: true },
+					},
+				})
+			)
+		).toBeUndefined()
+	})
+
+	it('falls back to the event creation time when legacy merged_at is null', () => {
+		const payload = legacyPayload({ author: 'carol', mergedBy: 'dave' })
+		expect(
+			toMergeEvent(
+				pullRequestEvent({
+					actor: 'dave',
+					payload: {
+						...payload,
+						pull_request: { ...payload.pull_request, merged_at: null },
+					},
+				})
+			)
+		).toEqual({
+			author: 'carol',
+			repository: 'acme/widgets',
+			repositoryId: 101,
+			owner: 'acme',
+			mergedBy: 'dave',
+			mergedAt: '2026-10-03T15:00:00Z',
+			number: 7,
+			mergeKind: 'merged',
+		})
+	})
+
+	it('classifies a legacy author and owner with different case as ownRepo', () => {
+		expect(
+			toMergeEvent(
+				pullRequestEvent({
+					actor: 'maintainer',
+					repository: 'ALIce/dotfiles',
+					payload: legacyPayload({ author: 'aLiCe', mergedBy: 'alice' }),
+				})
+			)
+		).toEqual({
+			author: 'aLiCe',
+			repository: 'ALIce/dotfiles',
+			repositoryId: 101,
+			owner: 'ALIce',
+			mergedBy: 'alice',
+			mergedAt: '2026-10-03T14:59:00Z',
+			number: 7,
+			mergeKind: 'ownRepo',
+		})
+	})
+
+	it('classifies a legacy author and merger with different case as selfMerged', () => {
+		expect(
+			toMergeEvent(
+				pullRequestEvent({
+					actor: 'maintainer',
+					payload: legacyPayload({ author: 'bOB', mergedBy: 'BoB' }),
+				})
+			)
+		).toEqual({
+			author: 'bOB',
+			repository: 'acme/widgets',
+			repositoryId: 101,
+			owner: 'acme',
+			mergedBy: 'BoB',
+			mergedAt: '2026-10-03T14:59:00Z',
+			number: 7,
+			mergeKind: 'selfMerged',
+		})
+	})
+
 	it('reads a trimmed merged event with the actor as author', () => {
 		expect(
 			toMergeEvent(
