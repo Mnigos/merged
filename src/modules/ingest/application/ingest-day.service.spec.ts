@@ -136,6 +136,29 @@ describe('IngestDay', () => {
 		)
 
 		layerIt.effect(
+			'matches sequential output when concurrency exceeds the deduplicated hours',
+			() =>
+				Effect.gen(function* () {
+					const ingestDay = yield* IngestDay
+					const store = yield* DayStore
+					yield* ingestDay.ingest(date, { hours: [0, 1], concurrency: 1 })
+					const sequential = Option.getOrThrow(yield* store.read(date))
+					const concurrent = yield* ingestDay.ingest(date, {
+						hours: [1, 0, 1, 0],
+						concurrency: 8,
+					})
+
+					expect(sequential).toEqual(expectedAggregate)
+					expect(Option.getOrThrow(yield* store.read(date))).toEqual(sequential)
+					expect(concurrent.hours.map(hour => hour.hour)).toEqual([0, 1])
+					expect(concurrent.linesSeen).toBe(28)
+					expect(concurrent.bytesDownloaded).toBe(
+						Buffer.byteLength(hourZero) + Buffer.byteLength(hourOne)
+					)
+				})
+		)
+
+		layerIt.effect(
 			'fails with ArchiveSourceError when an hour is missing',
 			() =>
 				Effect.gen(function* () {
@@ -147,4 +170,35 @@ describe('IngestDay', () => {
 				})
 		)
 	})
+
+	it.effect(
+		'matches the sequential aggregate with all events in a single hour',
+		() =>
+			Effect.gen(function* () {
+				const ingestDay = yield* IngestDay
+				const store = yield* DayStore
+				yield* ingestDay.ingest(date, { hours: [0], concurrency: 1 })
+				const sequential = Option.getOrThrow(yield* store.read(date))
+				const concurrent = yield* ingestDay.ingest(date, {
+					hours: [0],
+					concurrency: 8,
+				})
+
+				expect(sequential).toEqual(expectedAggregate)
+				expect(Option.getOrThrow(yield* store.read(date))).toEqual(sequential)
+				expect(concurrent.hours.map(hour => hour.hour)).toEqual([0])
+				expect(concurrent.linesSeen).toBe(28)
+			}).pipe(
+				Effect.provide(
+					IngestDay.layer.pipe(
+						Layer.provideMerge(
+							Layer.mergeAll(
+								inMemoryArchiveSourceLayer(new Map([[0, hourZero + hourOne]])),
+								inMemoryDayStoreLayer
+							)
+						)
+					)
+				)
+			)
+	)
 })

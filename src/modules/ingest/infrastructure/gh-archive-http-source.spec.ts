@@ -4,6 +4,7 @@ import { isoDateSchema } from '@shared/schema/iso-date'
 import { Effect, Fiber, Layer, Stream } from 'effect'
 import { HttpClient, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
+import { ArchiveSourceError } from '../application/archive-source.error'
 import { ArchiveSource } from '../application/archive-source.port'
 import {
 	ghArchiveHttpSourceLayer,
@@ -70,12 +71,32 @@ describe('ghArchiveHttpSourceLayer', () => {
 		const { requests, layer } = sourceWith([404])
 
 		return Effect.gen(function* () {
-			expect(yield* Effect.flip(readLines(3))).toMatchObject({
+			const error = yield* Effect.flip(readLines(3))
+			expect(error).toBeInstanceOf(ArchiveSourceError)
+			expect(error).toMatchObject({
 				_tag: 'ArchiveSourceError',
 				date: '2026-10-03',
 				hour: 3,
 			})
-			expect(requests).toHaveLength(1)
+			expect(requests).toEqual([toArchiveHourUrl(date, 3)])
+		}).pipe(Effect.provide(layer))
+	})
+
+	it.effect('succeeds after exactly one retry of a 500 response', () => {
+		const { requests, layer } = sourceWith([500, 200])
+
+		return Effect.gen(function* () {
+			const fiber = yield* Effect.forkChild(readLines(4))
+			yield* TestClock.adjust('1 minute')
+
+			expect(yield* Fiber.join(fiber)).toEqual({
+				lines: ['{"type":"WatchEvent"}', '{"type":"PushEvent"}'],
+				bytesRead: body.byteLength,
+			})
+			expect(requests).toEqual([
+				toArchiveHourUrl(date, 4),
+				toArchiveHourUrl(date, 4),
+			])
 		}).pipe(Effect.provide(layer))
 	})
 
@@ -86,7 +107,10 @@ describe('ghArchiveHttpSourceLayer', () => {
 			const fiber = yield* Effect.forkChild(readLines(0))
 			yield* TestClock.adjust('1 minute')
 
-			expect((yield* Fiber.join(fiber)).lines).toHaveLength(2)
+			expect(yield* Fiber.join(fiber)).toEqual({
+				lines: ['{"type":"WatchEvent"}', '{"type":"PushEvent"}'],
+				bytesRead: body.byteLength,
+			})
 			expect(requests).toHaveLength(3)
 		}).pipe(Effect.provide(layer))
 	})
@@ -100,8 +124,12 @@ describe('ghArchiveHttpSourceLayer', () => {
 			const fiber = yield* Effect.forkChild(Effect.flip(readLines(0)))
 			yield* TestClock.adjust('10 minutes')
 
-			expect(yield* Fiber.join(fiber)).toMatchObject({
+			const error = yield* Fiber.join(fiber)
+			expect(error).toBeInstanceOf(ArchiveSourceError)
+			expect(error).toMatchObject({
 				_tag: 'ArchiveSourceError',
+				date,
+				hour: 0,
 			})
 			expect(requests).toHaveLength(REQUEST_RETRIES + 1)
 		}).pipe(Effect.provide(layer))

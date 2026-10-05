@@ -2,9 +2,12 @@ import { BunFileSystem, BunPath } from '@effect/platform-bun'
 import { describe, expect, it } from '@effect/vitest'
 import { githubLoginSchema } from '@shared/schema/github-login'
 import { isoDateSchema } from '@shared/schema/iso-date'
-import { Effect, FileSystem, Layer, Option } from 'effect'
+import { Effect, FileSystem, Layer, Option, Schema } from 'effect'
 import { DayStore } from '../application/day-store.port'
-import type { DailyAggregate } from '../domain/daily-aggregate'
+import {
+	dailyAggregateSchema,
+	type DailyAggregate,
+} from '../domain/daily-aggregate'
 import { localFileDayStoreLayer } from './local-file-day-store'
 
 const date = isoDateSchema.make('2026-10-03')
@@ -41,6 +44,30 @@ const withStore = <TValue, TError>(
 	}).pipe(Effect.provide(platformLayer))
 
 describe('localFileDayStoreLayer', () => {
+	it.live(
+		'writes identical bytes twice and round-trips the persisted JSON Schema',
+		() =>
+			withStore(() =>
+				Effect.gen(function* () {
+					const store = yield* DayStore
+					const fs = yield* FileSystem.FileSystem
+					const first = yield* store.write(aggregate)
+					const firstBytes = yield* fs.readFile(first.location)
+					const second = yield* store.write(aggregate)
+					const secondBytes = yield* fs.readFile(second.location)
+
+					expect(second).toEqual(first)
+					expect(first.bytes).toBe(firstBytes.byteLength)
+					expect(secondBytes).toEqual(firstBytes)
+					expect(
+						yield* Schema.decodeUnknownEffect(
+							Schema.fromJsonString(dailyAggregateSchema)
+						)(new TextDecoder().decode(secondBytes))
+					).toEqual(aggregate)
+				})
+			)
+	)
+
 	it.live('writes days/<date>.json and reads it back', () =>
 		withStore(directory =>
 			Effect.gen(function* () {

@@ -15,6 +15,25 @@ describe('parseHours', () => {
 		expect(parseHours('23-23')).toEqual(Result.succeed([23]))
 	})
 
+	it('preserves list order and duplicate hours for ingest to normalize', () => {
+		expect(parseHours('23,0,23,1')).toEqual(Result.succeed([23, 0, 23, 1]))
+	})
+
+	it('accepts two-digit decimal hours with leading zeros', () => {
+		expect(parseHours('00,09')).toEqual(Result.succeed([0, 9]))
+		expect(parseHours('08-10')).toEqual(Result.succeed([8, 9, 10]))
+	})
+
+	it.each(['000', '000-01', '1-2,3', '1-2-3', '1e1', '1\n'])(
+		'rejects unsupported hour syntax in %j',
+		input => {
+			expect(Result.merge(parseHours(input))).toMatchObject({
+				_tag: 'InvalidHoursError',
+				input,
+			})
+		}
+	)
+
 	it.each(['', ',', '1,', ',1', '1,,2', ' 1', '1.5', '-1', 'a', '+1', '0x1'])(
 		'rejects the list token in %j',
 		input => {
