@@ -52,6 +52,7 @@ src/modules/<module>/
   application/       Effect services (use cases) and ports (services that infrastructure implements)
   infrastructure/    adapters: Blob stores, GH Archive source, GitHub client calls
   presentation/      components/, <name>.functions.ts server functions, hooks/
+  testing/           in-memory port Layers and fixtures for specs only
   <module>.layer.ts  wires the module's application services to its adapters
 ```
 
@@ -79,28 +80,34 @@ Dependencies point inwards: presentation → application → domain. Infrastruct
 
 ## Shared kernel
 
-| Path                  | Holds                                                                         |
-| --------------------- | ----------------------------------------------------------------------------- |
-| `src/shared/schema/`  | Schema helpers and shared branded types (GitHub login, season id, ISO date).  |
-| `src/shared/storage/` | `BlobStorage` port (read and write JSON by path) and its Vercel Blob adapter. |
-| `src/shared/github/`  | `GitHubClient` port (batched GraphQL, retry, rate limiter) and its adapter.   |
-| `src/shared/config/`  | Effect `Config` definitions for tokens and Blob credentials.                  |
-| `src/shared/errors/`  | Cross-module tagged errors such as storage and decode failures.               |
-| `src/shared/ui/`      | Reusable, domain-free UI primitives.                                          |
-| `src/shared/utils/`   | Domain-agnostic utils with JSDoc.                                             |
+| Path                  | Holds                                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------- |
+| `src/shared/schema/`  | Schema helpers and shared branded types (GitHub login, season id, ISO date).                            |
+| `src/shared/storage/` | `BlobStorage` port (read and write JSON by path) and its Vercel Blob adapter.                           |
+| `src/shared/github/`  | `GitHubClient` port (batched GraphQL, retry, rate limiter) and its adapter; **Bot** rules in `bots.ts`. |
+| `src/shared/config/`  | Effect `Config` definitions for tokens and Blob credentials.                                            |
+| `src/shared/errors/`  | Cross-module tagged errors such as storage and decode failures.                                         |
+| `src/shared/ui/`      | Reusable, domain-free UI primitives.                                                                    |
+| `src/shared/utils/`   | Domain-agnostic utils with JSDoc.                                                                       |
 
 Modules build typed stores on top of `BlobStorage` in their own `infrastructure/`: each store owns its paths and decodes its files with the module's Schema.
 
+## Ingest
+
+`scripts/ingest-day.ts` runs `IngestDay` (`ingest/application/ingest-day.service.ts`) over the `ArchiveSource` and `DayStore` ports. Each GH Archive hour streams through gunzip and line splitting; a substring check drops lines without a `PullRequestEvent` or `WatchEvent` marker before JSON parsing, Schema decodes the rest, invalid or irrelevant lines are counted and skipped, and bots are excluded. Hours run concurrently (4 by default); the day's events become one **Daily aggregate**.
+
+GH Archive trimmed pull request payloads in 2025: a merge is now `action: "merged"` with the author as `actor`, and the merger is absent. The decoder reads that format and the older `closed` plus `merged: true` format; for trimmed events an unknown merger counts as merged by someone else, and the aggregate keeps those pull request numbers so pass 2 can resolve the merger for candidates. Logins and repository names are lowercased; own-repo merges get only a per-author count.
+
 ## Data files in Blob
 
-| Path                                  | Content                                                                            | Size      | Writer     |
-| ------------------------------------- | ---------------------------------------------------------------------------------- | --------- | ---------- |
-| `days/<YYYY-MM-DD>.json`              | Rows of author, repository, merged, self-merged, count; WatchEvents per repository | a few MB  | `ingest`   |
-| `seasons/<YYYY-MM>/repos.json`        | Repository standing: contributors, stars in season, real stars, language           | a few MB  | `profiles` |
-| `seasons/<YYYY-MM>/profiles.json`     | Avatar, name, location, company for candidates                                     | a few MB  | `profiles` |
-| `seasons/<YYYY-MM>/tabs/<board>.json` | Top 100 for a board: `global`, `poland`, `typescript`, `rust`, …                   | < 100 KB  | `ranking`  |
-| `seasons/<YYYY-MM>/shards/<xx>.json`  | Score, rank, percentile of every contributor; 256 shards by login hash             | 50–100 KB | `ranking`  |
-| `seasons/index.json`                  | Season list, last recompute time, footer stats                                     | 1 KB      | `ranking`  |
+| Path                                  | Content                                                                                                                                                     | Size      | Writer     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------- |
+| `days/<YYYY-MM-DD>.json`              | Day totals; rows of author, repository, merged, self-merged, merged PR numbers; own-repo counts per author; stars and external merge authors per repository | a few MB  | `ingest`   |
+| `seasons/<YYYY-MM>/repos.json`        | Repository standing: contributors, stars in season, real stars, language                                                                                    | a few MB  | `profiles` |
+| `seasons/<YYYY-MM>/profiles.json`     | Avatar, name, location, company for candidates                                                                                                              | a few MB  | `profiles` |
+| `seasons/<YYYY-MM>/tabs/<board>.json` | Top 100 for a board: `global`, `poland`, `typescript`, `rust`, …                                                                                            | < 100 KB  | `ranking`  |
+| `seasons/<YYYY-MM>/shards/<xx>.json`  | Score, rank, percentile of every contributor; 256 shards by login hash                                                                                      | 50–100 KB | `ranking`  |
+| `seasons/index.json`                  | Season list, last recompute time, footer stats                                                                                                              | 1 KB      | `ranking`  |
 
 Only the writer module decodes and encodes a file; readers go through its application service.
 

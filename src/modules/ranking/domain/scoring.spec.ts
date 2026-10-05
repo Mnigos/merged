@@ -3,7 +3,6 @@ import { Effect } from 'effect'
 import {
 	CAP_PER_REPO,
 	capScore,
-	isBot,
 	popularityWeight,
 	scoreAuthor,
 	scoreRepo,
@@ -31,12 +30,6 @@ describe('scoring', () => {
 
 	it('gives a repository with no popularity a weight of 1', () => {
 		expect(popularityWeight(0)).toBe(1)
-	})
-
-	it('detects bots by suffix and by known login', () => {
-		expect(isBot('dependabot[bot]')).toBe(true)
-		expect(isBot('Renovate')).toBe(true)
-		expect(isBot('Mnigos')).toBe(false)
 	})
 
 	it.effect('runs inside an Effect', () =>

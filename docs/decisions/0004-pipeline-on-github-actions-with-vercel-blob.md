@@ -19,9 +19,12 @@ A day of GH Archive is 24 gzipped hourly files. The leaderboard needs one recomp
 ## Consequences
 
 - Results lag up to a day; the UI shows the provisional season's day of the month.
-- An ingest over 30 minutes is split into a matrix of four 6-hour jobs; DuckDB over HTTPS is the fallback if Bun streaming is too slow.
 - GitHub API use stays within 5,000 points per hour only through batching; a larger candidate set needs a second token or fewer profiles.
 - Blob secrets live in GitHub Actions secrets and Vercel environment variables, read through Effect `Config`.
+
+## Notes
+
+- **2026-10-05, measured:** a full day (2026-10-03) is 528 MB gzipped and 1.95 M lines; the substring pre-filter drops 94.5% before parsing. `ingest-day` with four hours in parallel took 6–10 s wall with 311–533 MB peak RSS on a laptop, bound by download speed. The planned split into four 6-hour jobs and the DuckDB fallback are not needed.
 
 ## Related
 

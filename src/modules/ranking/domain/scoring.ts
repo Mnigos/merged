@@ -21,29 +21,11 @@ export const CAP_PER_REPO = 0.3
 /** Offset that keeps tiny repositories at a weight of about 1. */
 export const POPULARITY_OFFSET = 10
 
-export const BOT_SUFFIX = '[bot]'
-
-export const BOT_LOGINS: ReadonlySet<string> = new Set([
-	'dependabot',
-	'renovate',
-	'github-actions',
-	'snyk-bot',
-	'imgbot',
-	'allcontributors',
-])
-
 export type MergedPrCounts = Readonly<Record<MergeKind, number>>
 
 export interface RepoContribution {
 	readonly popularity: number
 	readonly prs: MergedPrCounts
-}
-
-/** True for logins excluded as bots: a `[bot]` suffix or a known bot login. */
-export function isBot(login: string) {
-	const normalized = login.toLowerCase()
-
-	return normalized.endsWith(BOT_SUFFIX) || BOT_LOGINS.has(normalized)
 }
 
 /** log10 weight of a repository's popularity, about 1 for an unknown repository. */
