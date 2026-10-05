@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>merged · October 2026 results board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:oklch(23% 0.035 255); --ground-2:oklch(27% 0.035 255); --ground-3:oklch(31% 0.035 255);
+    --rule:oklch(38% 0.03 255); --ink:oklch(97% 0.008 255); --ink-2:oklch(80% 0.02 255); --ink-3:oklch(64% 0.02 255);
+    --bar:oklch(68% 0.14 232); --bar-dim:oklch(48% 0.09 232);
+    --signal:oklch(83% 0.165 85); --signal-ink:oklch(22% 0.05 85);
+    --down:oklch(70% 0.14 25);
+    --font:"Archivo",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{background:var(--ground)}
+  body{margin:0;color:var(--ink);font:16px/1.45 var(--font);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+  ::selection{background:var(--signal);color:var(--signal-ink)}
+  :focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+  a{color:inherit;text-decoration:none}
+  .cond{font-stretch:72%}
+  .wide{font-stretch:112%}
+
+  /* season strip: the one unbroken line that says where now is */
+  .season{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:10px 16px;background:var(--ground-2);border-bottom:1px solid var(--rule);font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+  .season b{color:var(--ink);font-weight:800}
+  .meter{position:relative;height:6px;background:var(--rule)}
+  .meter i{position:absolute;inset:0 auto 0 0;width:16.1%;background:var(--signal)}
+  .meter i::after{content:"";position:absolute;right:-1px;top:-5px;width:2px;height:16px;background:var(--signal)}
+
+  header{display:flex;align-items:center;gap:18px;padding:14px 16px;border-bottom:1px solid var(--rule)}
+  .mark{font-weight:900;font-size:20px;letter-spacing:-.03em;font-stretch:112%}
+  nav{display:flex;gap:16px;margin-left:auto;font-size:14px;font-weight:600;color:var(--ink-2)}
+
+  main{max-width:1180px;margin:0 auto;padding:0 16px 40px}
+  .top{display:grid;gap:20px;padding:26px 0 18px;border-bottom:1px solid var(--rule)}
+  .top .copy{display:grid;gap:12px}
+  h1{margin:0;font-size:clamp(34px,8.4vw,64px);line-height:.98;letter-spacing:-.03em;font-weight:900;font-stretch:112%;text-wrap:balance;max-width:14ch}
+  .lede{margin:0;color:var(--ink-2);font-size:17px;max-width:46ch}
+
+  /* lookup: the working action */
+  .lookup{display:grid;gap:8px}
+  .lookup label{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+  .lookup form{display:grid;grid-template-columns:1fr auto;border:2px solid var(--ink);background:var(--ground-2)}
+  .lookup input{min-width:0;background:none;border:0;color:var(--ink);font:600 18px var(--font);padding:12px 14px;outline:0}
+  .lookup input::placeholder{color:var(--ink-3)}
+  .lookup button{border:0;background:var(--ink);color:var(--ground);font:800 15px var(--font);letter-spacing:.04em;text-transform:uppercase;padding:0 18px;cursor:pointer}
+  .lookup button:hover{background:var(--signal);color:var(--signal-ink)}
+
+  /* your result, the one place the signal color lives */
+  .yours{display:grid;grid-template-columns:auto 1fr;gap:0 16px;border:2px solid var(--signal);background:oklch(26% 0.04 85);padding:14px 16px}
+  .yours .rank{grid-row:1/3;font-size:64px;line-height:.9;font-weight:900;font-stretch:72%;color:var(--signal)}
+  .yours .who{font-weight:800;font-size:18px}
+  .yours .who span{color:var(--ink-2);font-weight:500;margin-left:8px;font-size:15px}
+  .yours .facts{color:var(--ink-2);font-size:14px;line-height:1.5}
+  .yours .facts b{color:var(--ink)}
+  .yours .acts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .btn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 14px;border:2px solid var(--ink);font:800 14px var(--font);letter-spacing:.03em;text-transform:uppercase;color:var(--ink)}
+  .btn.primary{background:var(--signal);border-color:var(--signal);color:var(--signal-ink)}
+  .btn svg{width:14px;height:14px;fill:currentColor}
+
+  /* the board */
+  .board{padding-top:22px}
+  .boardhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 18px;margin-bottom:12px}
+  .boardhead h2{margin:0;font-size:22px;font-weight:900;letter-spacing:-.02em;font-stretch:112%}
+  .boardhead .status{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+  .boardhead .status b{color:var(--signal)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .tabs{display:flex;gap:2px;margin-left:auto;background:var(--rule);border:1px solid var(--rule);max-width:100%;overflow-x:auto;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs a{white-space:nowrap}
+  .tabs a{padding:7px 12px;font-size:13px;font-weight:700;background:var(--ground-2);color:var(--ink-2)}
+  .tabs a[aria-current]{background:var(--ink);color:var(--ground)}
+
+  .rows{display:grid;border-top:2px solid var(--ink)}
+  .row{display:grid;grid-template-columns:52px 1fr auto;grid-template-areas:"rank who score" "rank bar bar" "rank repos repos";column-gap:12px;row-gap:4px;padding:12px 0;border-bottom:1px solid var(--rule);align-items:center}
+  .row .rank{grid-area:rank;font-size:40px;line-height:1;font-weight:900;font-stretch:72%;color:var(--ink-2);align-self:start;padding-top:2px}
+  .row:nth-child(-n+3) .rank{color:var(--ink);font-size:48px}
+  .row .who{grid-area:who;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;min-width:0}
+  .row .who b{font-weight:800;font-size:17px;overflow-wrap:anywhere}
+  .row .who span{color:var(--ink-3);font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+  .row .score{grid-area:score;display:flex;align-items:baseline;gap:10px;justify-self:end}
+  .row .score b{font-size:20px;font-weight:900;font-stretch:72%}
+  .tag{display:inline-flex;align-items:center;gap:4px;min-width:38px;justify-content:center;padding:2px 6px;font-size:12px;font-weight:800;letter-spacing:.04em;background:var(--ground-3);color:var(--ink-2)}
+  .tag.up::before,.tag.down::before{content:"";width:8px;height:8px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 10 10%27%3E%3Cpath d=%27M5 1l4.5 8h-9z%27/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 10 10%27%3E%3Cpath d=%27M5 1l4.5 8h-9z%27/%3E%3C/svg%3E") center/contain no-repeat}
+  .tag.down::before{transform:rotate(180deg)}
+  .tag.up{background:var(--signal);color:var(--signal-ink)}
+  .tag.down{background:oklch(33% 0.07 25);color:oklch(84% 0.10 25)}
+  .tag.new{background:var(--ink);color:var(--ground)}
+  .row .bar{grid-area:bar;height:10px;background:var(--ground-3);position:relative}
+  .row .bar i{position:absolute;inset:0 auto 0 0;background:var(--bar);width:var(--w)}
+  .row:nth-child(-n+3) .bar i{background:var(--ink)}
+  .row .repos{grid-area:repos;color:var(--ink-3);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .repos b{color:var(--ink-2);font-weight:600}
+  .more{display:block;padding:14px 0;text-align:center;font-weight:800;font-size:14px;letter-spacing:.04em;text-transform:uppercase;border-bottom:2px solid var(--ink);color:var(--ink-2)}
+
+  /* ticker, the board's one motion */
+  .ticker{background:var(--ink);color:var(--ground);padding:10px 16px;font-size:14px;font-weight:700;line-height:1.5}
+  .ticker b{font-weight:900;margin-right:6px}
+  .ticker em{font-style:normal;color:oklch(45% 0.12 85);margin:0 10px}
+
+  footer{display:grid;gap:8px;padding:28px 0 0;color:var(--ink-3);font-size:13px;max-width:70ch}
+  footer a{text-decoration:underline;text-underline-offset:3px;color:var(--ink-2)}
+
+  @media (min-width:900px){
+    .season{padding:10px 32px}
+    header{padding:16px 32px}
+    main{padding:0 32px 48px}
+    .top{grid-template-columns:1.1fr .9fr;align-items:end;padding:36px 0 26px}
+    .top .copy{display:grid;gap:14px}
+    .top .act{display:grid;gap:14px}
+    .row{grid-template-columns:64px minmax(200px,1.2fr) 2fr auto;grid-template-areas:"rank who bar score" "rank repos bar score";row-gap:2px;padding:12px 0}
+    .row .rank{font-size:44px}
+    .row:nth-child(-n+3) .rank{font-size:52px}
+    .row .bar{align-self:center;height:12px}
+    .row .repos{grid-area:repos}
+    .row .score b{font-size:24px}
+  }
+</style>
+</head>
+<body>
+
+<div class="season">
+  <span><b>October 2026</b> · global</span>
+  <div class="meter" role="progressbar" aria-valuenow="5" aria-valuemin="0" aria-valuemax="31" aria-label="Days counted this month"><i></i></div>
+  <span><b>5 of 31</b> days reporting</span>
+</div>
+
+<header>
+  <a class="mark" href="#">merged</a>
+  <nav><a href="#">Methodology</a><a href="#">Badge</a></nav>
+</header>
+
+<main>
+  <section class="top">
+    <div class="copy">
+      <h1>Who is actually getting merged this month.</h1>
+      <p class="lede">A monthly board built only from pull requests that someone else accepted, weighted by the project. Commits to your own repos, bots and backdated graphs count for nothing here.</p>
+    </div>
+    <div class="act">
+      <div class="lookup">
+        <label for="login">Find your result</label>
+        <form onsubmit="return false"><input id="login" placeholder="GitHub login" value="k-wojcik" autocomplete="off"><button type="submit">Look up</button></form>
+      </div>
+      <div class="yours" aria-label="Your result">
+        <div class="rank cond">#4</div>
+        <div class="who">k-wojcik <span>Wrocław, Poland</span></div>
+        <div class="facts">Projected, 5 of 31 days counted. <b>3,902 points</b> from <b>41 merged PRs</b> in 8 repositories. Top 0.02% of 212,418 contributors. #1 in Poland.</div>
+        <div class="acts">
+          <a class="btn primary" href="#"><svg viewBox="0 0 24 24"><path d="M18.9 2H22l-7.6 8.7L23 22h-7l-5.5-7.2L4.2 22H1l8.2-9.4L1 2h7.2l5 6.6L18.9 2zm-1.2 18h1.9L7.4 3.9H5.3L17.7 20z"/></svg>Share result</a>
+          <a class="btn" href="#">Breakdown</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="board">
+    <div class="boardhead">
+      <h2>Leading</h2>
+      <span class="status">Projected · final on <b>Nov 1</b></span>
+      <div class="tabs" role="tablist"><a href="#" aria-current="page">Global</a><a href="#">Poland</a><a href="#">TypeScript</a><a href="#">Rust</a></div>
+    </div>
+    <div class="rows">
+      <div class="row"><div class="rank">1</div><div class="who"><b>terryminh</b><span>Shanghai</span></div><div class="score"><span class="tag up"><span class="sr">up </span>2</span><b>4,812</b></div><div class="bar"><i style="--w:100%"></i></div><div class="repos"><b>61 merged</b> · apache/shardingsphere, apache/elasticjob, +4</div></div>
+      <div class="row"><div class="rank">2</div><div class="who"><b>svarlamov</b><span>Berlin</span></div><div class="score"><span class="tag down"><span class="sr">down </span>1</span><b>4,390</b></div><div class="bar"><i style="--w:91%"></i></div><div class="repos"><b>48 merged</b> · kubernetes/kubernetes, helm/helm, +9</div></div>
+      <div class="row"><div class="rank">3</div><div class="who"><b>aqrln</b><span>Lisbon</span></div><div class="score"><span class="tag new">New</span><b>4,117</b></div><div class="bar"><i style="--w:86%"></i></div><div class="repos"><b>50 merged</b> · rust-lang/rust, rust-lang/cargo, +3</div></div>
+      <div class="row"><div class="rank">4</div><div class="who"><b>k-wojcik</b><span>Wrocław</span></div><div class="score"><span class="tag up"><span class="sr">up </span>6</span><b>3,902</b></div><div class="bar"><i style="--w:81%"></i></div><div class="repos"><b>41 merged</b> · tanstack/router, vitejs/vite, +6</div></div>
+      <div class="row"><div class="rank">5</div><div class="who"><b>lgrenier</b><span>San Francisco</span></div><div class="score"><span class="tag down"><span class="sr">down </span>2</span><b>3,744</b></div><div class="bar"><i style="--w:78%"></i></div><div class="repos"><b>38 merged</b> · observablehq/plot, d3/d3</div></div>
+      <div class="row"><div class="rank">6</div><div class="who"><b>yuki-nkmr</b><span>Tokyo</span></div><div class="score"><span class="tag up"><span class="sr">up </span>1</span><b>3,561</b></div><div class="bar"><i style="--w:74%"></i></div><div class="repos"><b>35 merged</b> · denoland/deno, oven-sh/bun, +5</div></div>
+      <div class="row"><div class="rank">7</div><div class="who"><b>priyar</b><span>Bengaluru</span></div><div class="score"><span class="tag new">New</span><b>3,380</b></div><div class="bar"><i style="--w:70%"></i></div><div class="repos"><b>29 merged</b> · pytorch/pytorch, huggingface/transformers</div></div>
+      <div class="row"><div class="rank">8</div><div class="who"><b>ldecoster</b><span>Ghent</span></div><div class="score"><span class="tag up"><span class="sr">up </span>3</span><b>3,190</b></div><div class="bar"><i style="--w:66%"></i></div><div class="repos"><b>33 merged</b> · home-assistant/core, +2</div></div>
+      <div class="row"><div class="rank">9</div><div class="who"><b>o-aliyev</b><span>Baku</span></div><div class="score"><span class="tag down"><span class="sr">down </span>4</span><b>3,044</b></div><div class="bar"><i style="--w:63%"></i></div><div class="repos"><b>27 merged</b> · nestjs/nest, typeorm/typeorm, +4</div></div>
+      <div class="row"><div class="rank">10</div><div class="who"><b>ehlers</b><span>Oslo</span></div><div class="score"><span class="tag up"><span class="sr">up </span>12</span><b>2,915</b></div><div class="bar"><i style="--w:61%"></i></div><div class="repos"><b>24 merged</b> · golang/go, grafana/grafana</div></div>
+    </div>
+    <a class="more" href="#">Positions 11 to 100</a>
+  </section>
+
+  <footer>
+    <span>1,284,902 merged pull requests counted so far this month from 96,105 repositories. 41,733 bot and own-repo PRs dropped. Recomputed daily at 06:00 UTC from GH Archive. <a href="#">How the score works</a>.</span>
+    <span>Demo data: every name and number on this page is synthetic.</span>
+  </footer>
+</main>
+
+<div class="ticker" aria-label="Latest changes"><b>Latest</b> ehlers up 12 to #10 <em>·</em> priyar enters at #7 <em>·</em> aqrln enters at #3 <em>·</em> k-wojcik up 6 to #4, first in Poland <em>·</em> 38,210 PRs merged yesterday</div>
+</body>
+</html>

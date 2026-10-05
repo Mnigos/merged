@@ -1,0 +1,56 @@
+{
+  "name": "merged",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bunx --bun vite dev --port 3000",
+    "build": "bunx --bun vite build",
+    "start": "bun run .output/server/index.mjs",
+    "check": "ultracite check",
+    "check:fix": "ultracite fix --unsafe",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-router": "^1.170.41",
+    "@tanstack/react-start": "^1.168.60",
+    "effect": "4.0.0",
+    "nitro": "3.0.260903-beta",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@commitlint/types": "^21.2.3",
+    "@effect/platform-bun": "4.0.0",
+    "@effect/vitest": "4.0.0",
+    "@types/bun": "^1.4.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
+    "oxlint-tsgolint": "7.0.2003",
+    "typescript": "^7.0.2",
+    "ultracite": "7.12.2",
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
+  },
+  "overrides": {
+    "@effect/platform-node-shared": "4.0.0"
+  },
+  "engines": {
+    "bun": ">=1.4.2",
+    "npm": "please-use-bun",
+    "yarn": "please-use-bun"
+  },
+  "packageManager": "bun@1.4.2"
+}

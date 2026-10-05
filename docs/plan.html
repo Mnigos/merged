@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSS Leaderboard · plan na weekend</title>
+<style>
+  :root { --bg:#fbfbfa; --fg:#1b1b1f; --muted:#6b6b76; --line:#e6e6e3; --accent:#2f6df6; --card:#fff; --ok:#1f8f4e; --warn:#b7791f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111214; --fg:#ecebe8; --muted:#9a9aa3; --line:#2a2b30; --card:#18191d; --accent:#6f9bff; } }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif }
+  main { max-width:860px; margin:0 auto; padding:48px 24px 96px }
+  h1 { font-size:34px; line-height:1.15; margin:0 0 8px; letter-spacing:-.01em }
+  h2 { font-size:20px; margin:48px 0 14px; padding-top:20px; border-top:1px solid var(--line) }
+  h3 { font-size:15px; margin:18px 0 6px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted) }
+  p, li { max-width:70ch }
+  .lead { color:var(--muted); font-size:18px; margin:0 0 24px }
+  .pill { display:inline-block; font-size:12px; padding:2px 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); margin-right:6px }
+  .grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)) }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px }
+  .card b { display:block; margin-bottom:4px }
+  .card p { margin:0; color:var(--muted); font-size:15px }
+  table { width:100%; border-collapse:collapse; font-size:15px }
+  th, td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top }
+  th { color:var(--muted); font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.05em }
+  code, pre { font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace }
+  code { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:1px 6px }
+  pre { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; overflow:auto }
+  pre code { border:0; padding:0; background:none }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:12px 0 }
+  .flow .box { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; font-size:14px }
+  .flow .box small { display:block; color:var(--muted) }
+  .flow .arr { color:var(--muted) }
+  ul.check { list-style:none; padding:0 }
+  ul.check li { padding:6px 0 6px 30px; position:relative; border-bottom:1px dashed var(--line) }
+  ul.check li::before { content:""; position:absolute; left:0; top:11px; width:16px; height:16px; border:1.5px solid var(--muted); border-radius:5px }
+  .tag { font-size:12px; color:var(--muted); margin-left:6px }
+  .warn { color:var(--warn) } .ok { color:var(--ok) }
+  footer { margin-top:56px; color:var(--muted); font-size:14px }
+</style>
+</head>
+<body>
+<main>
+
+<h1>OSS Leaderboard</h1>
+<p class="lead">Miesięczny ranking prawdziwych kontrybutorów open source. Liczą się tylko PR‑y, które ktoś inny zmergował, ważone popularnością projektu. Bez bazy, bez serwera, bez kosztów.</p>
+<span class="pill">plan na weekend</span><span class="pill">nazwa robocza</span><span class="pill">5 października 2026</span>
+
+<h2>Dlaczego to ma sens</h2>
+<p>Istniejące rankingi liczą contributions, które każdy nabije skryptem, albo sumują od zawsze, więc szczyt okupują ci sami weterani. Sezon miesięczny i scoring oparty o cudze decyzje merge dają świeży ranking, który trudno oszukać i który ludzie chcą sobie podać dalej.</p>
+
+<h2>Decyzje</h2>
+<div class="grid">
+  <div class="card"><b>TanStack Start + React 19</b><p>Jedna aplikacja, server functions zamiast API. Nitro preset <code>vercel</code>.</p></div>
+  <div class="card"><b>Effect 4 RC</b><p>Cały pipeline danych: Stream, Schema, Layer, Schedule. W aplikacji tylko wewnątrz server functions.</p></div>
+  <div class="card"><b>Bez bazy i workera</b><p>GitHub Actions liczy, Vercel Blob trzyma JSON, Vercel serwuje. Blob przez SDK <code>@vercel/blob</code>.</p></div>
+  <div class="card"><b>Bez oRPC, bez turbo</b><p>Jeden package, jeden klient. Kontrakt można wyciągnąć później, gdy pojawi się drugi konsument.</p></div>
+  <div class="card"><b>Tooling z Rigtch</b><p>oxlint z presetami ultracite (core, react, tanstack) i tsgolint, oxfmt, TypeScript 7, Vitest z <code>@effect/vitest</code>.</p></div>
+  <div class="card"><b>Tailwind 4</b><p>Prosty, ciemny layout, karty OG generowane przez satori w server route.</p></div>
+</div>
+
+<h2>Scoring</h2>
+<p>Zasada: liczy się tylko to, co ktoś inny musiał zaakceptować. Wszystkie stałe w jednym pliku, formuła opisana w README.</p>
+<pre><code>score(author) = Σ po repo  min( Σ pr_weight × log10(popularity + 10),  CAP_PER_REPO × total )
+
+pr_weight        1.0  zwykły merge przez kogoś innego
+                 0.5  self-merge (autor ma write access, czyli maintainer)
+                 0    PR do repo pod własnym loginem
+
+popularity       pass 1: liczba różnych autorów zmergowanych w sezonie + WatchEvents w sezonie
+                 pass 2: realne gwiazdki z GraphQL dla repozytoriów kandydatów
+
+CAP_PER_REPO     0.3  jedno repo daje maks. 30% wyniku
+MIN_POPULARITY   repo z 1 kontrybutorem i 0 gwiazdek waży ~1 punkt, więc farmy nie mają znaczenia</code></pre>
+
+<h3>Wykluczenia</h3>
+<ul>
+  <li>Loginy kończące się na <code>[bot]</code> oraz lista znanych botów: dependabot, renovate, github-actions, snyk, imgbot, allcontributors.</li>
+  <li>PR‑y do repozytoriów, których właścicielem jest autor.</li>
+  <li>Konta z więcej niż 95% PR‑ów w jednym repo nie trafiają do zakładki globalnej, ale widać ich wynik w wyszukiwarce.</li>
+</ul>
+
+<h2>Architektura</h2>
+<div class="flow">
+  <div class="box">GH Archive<small>24 pliki gz na dzień</small></div><span class="arr">→</span>
+  <div class="box">GitHub Action, cron 06:00 UTC<small>Bun + Effect, scripts/</small></div><span class="arr">→</span>
+  <div class="box">Vercel Blob<small>agregaty dnia, ranking, shardy</small></div><span class="arr">→</span>
+  <div class="box">TanStack Start na Vercelu<small>server functions, cache 1h</small></div>
+</div>
+<p>Wyniki pojawiają się bez redeployu. GitHub API służy tylko do wzbogacania i mieści się w limicie 5000 punktów na godzinę dzięki batchowaniu po 100 aliasów w GraphQL.</p>
+
+<h3>Pliki w Blob</h3>
+<table>
+  <tr><th>Ścieżka</th><th>Zawartość</th><th>Rozmiar</th></tr>
+  <tr><td><code>days/2026-10-04.json</code></td><td>wiersze <code>author, repo, merged, selfMerged, count</code> plus WatchEvents per repo</td><td>kilka MB</td></tr>
+  <tr><td><code>seasons/2026-10/repos.json</code></td><td>popularność repo: autorzy, gwiazdki w sezonie, realne gwiazdki, język</td><td>kilka MB</td></tr>
+  <tr><td><code>seasons/2026-10/profiles.json</code></td><td>avatar, nazwa, lokalizacja, firma dla kandydatów</td><td>kilka MB</td></tr>
+  <tr><td><code>seasons/2026-10/tabs/global.json</code></td><td>top 100 dla zakładki, analogicznie <code>poland</code>, <code>typescript</code>, <code>rust</code></td><td>&lt; 100 KB</td></tr>
+  <tr><td><code>seasons/2026-10/shards/a3.json</code></td><td>wynik, pozycja i percentyl wszystkich autorów, 256 shardów po hashu loginu</td><td>50–100 KB każdy</td></tr>
+  <tr><td><code>seasons/index.json</code></td><td>lista sezonów, data ostatniego przeliczenia, statystyki do stopki</td><td>1 KB</td></tr>
+</table>
+
+<h3>Pipeline, trzy komendy</h3>
+<table>
+  <tr><th>Komenda</th><th>Robi</th><th>Effect</th></tr>
+  <tr><td><code>ingest-day --date</code></td><td>pobiera 24 pliki, odrzuca linie bez prefiksu <code>PullRequestEvent</code> lub <code>WatchEvent</code> przed parsowaniem, dekoduje, agreguje, zapisuje dzień</td><td>Stream z gunzip i split po liniach, Schema eventów, współbieżność 4 pliki</td></tr>
+  <tr><td><code>enrich --season</code></td><td>pass 1 scoring, wybór kandydatów (top 5000 autorów, top 50 000 do profili), batchowane GraphQL dla repo i profili, cache w Blob</td><td>Layer GitHubClient, Schedule retry z backoff, limiter 1500 pkt na minutę</td></tr>
+  <tr><td><code>build-ranking --season</code></td><td>pass 2 scoring, zakładki, percentyle, shardy, index</td><td>czyste funkcje, testy jednostkowe na formule</td></tr>
+</table>
+
+<h2>Aplikacja</h2>
+<table>
+  <tr><th>Trasa</th><th>Co pokazuje</th></tr>
+  <tr><td><code>/</code></td><td>zakładki Global, Polska, TypeScript, Rust; top 100 z avatarami, wynikiem i trzema najważniejszymi repo; przełącznik sezonu</td></tr>
+  <tr><td><code>/u/:login</code></td><td>wynik, pozycja, percentyl, lista repo z wkładem, przycisk „udostępnij na X” z gotową treścią</td></tr>
+  <tr><td><code>/og/:login.png</code></td><td>karta 1200×630 generowana przez satori, cache na krawędzi</td></tr>
+  <tr><td><code>/api/badge/:login</code></td><td>JSON w formacie endpoint badge shields.io, do wklejenia w README</td></tr>
+  <tr><td><code>/methodology</code></td><td>formuła, wykluczenia, źródła danych, FAQ „dlaczego nie liczymy contributions”</td></tr>
+</table>
+
+<h2>Struktura repo</h2>
+<pre><code>oss-leaderboard/
+  src/routes/            trasy TanStack Start
+  src/components/        tabela, karta użytkownika, zakładki
+  src/server/            server functions, odczyt z Blob, cache
+  src/domain/            Schema plików danych, scoring, stałe, boty  ← wspólne ze skryptami
+  scripts/               ingest-day, enrich, build-ranking, layers
+  .github/workflows/     daily.yml (cron), backfill.yml (matrix po datach)
+  docs/plan.html
+  oxlint.config.mts  oxfmt.config.mts  vite.config.ts  tsconfig.json  package.json</code></pre>
+
+<h2>Sobota: dane</h2>
+<ul class="check">
+  <li>Scaffold: Bun, TanStack Start, Tailwind 4, TypeScript 7, oxlint, oxfmt, Vitest, Effect 4 RC <span class="tag">1 h</span></li>
+  <li><b>Spike:</b> jedna godzina GH Archive przez Stream, pomiar czasu i pamięci. Jeśli Bun nie wyrabia, DuckDB po HTTPS <span class="tag">1 h</span></li>
+  <li>Schema eventów, agregacja dnia, zapis do Blob, <code>ingest-day</code> działa dla wczoraj <span class="tag">2 h</span></li>
+  <li>Scoring pass 1 i testy formuły, w tym przypadki: bot, własne repo, self-merge, cap 30% <span class="tag">1,5 h</span></li>
+  <li>GitHubClient z batchowanym GraphQL, retry, limiter; <code>enrich</code> dla repo i profili <span class="tag">2 h</span></li>
+  <li><code>build-ranking</code>: zakładki, percentyle, shardy, index <span class="tag">1 h</span></li>
+  <li>Backfill bieżącego sezonu lokalnie w pętli po dniach, odpalony na noc <span class="tag">15 min</span></li>
+</ul>
+
+<h2>Niedziela: aplikacja i launch</h2>
+<ul class="check">
+  <li>Strona główna z zakładkami i tabelą, server function z cache 1 h <span class="tag">2 h</span></li>
+  <li>Profil <code>/u/:login</code> z shardem, percentylem i przyciskiem udostępnienia <span class="tag">1,5 h</span></li>
+  <li>Karta OG przez satori, badge shields.io <span class="tag">1,5 h</span></li>
+  <li>Strona metodologii i README ze screenem, linkiem live i formułą <span class="tag">1 h</span></li>
+  <li>Workflows: <code>daily.yml</code> z cronem i sekretami, <code>backfill.yml</code> z matrix <span class="tag">45 min</span></li>
+  <li>Deploy na Vercel, domena, sprawdzenie kart na X <span class="tag">45 min</span></li>
+  <li>Przejrzenie top 100: wyłapanie botów i anomalii, dopisanie do listy wykluczeń <span class="tag">30 min</span></li>
+</ul>
+
+<h2>Ryzyka i co zrobić, gdy wystąpią</h2>
+<table>
+  <tr><th>Ryzyko</th><th>Plan</th></tr>
+  <tr><td>Pliki GH Archive są duże i ingest dnia trwa ponad 30 min</td><td>Filtr po prefiksie linii przed JSON.parse. Matrix 4 jobów po 6 godzin w Action. Ostatecznie DuckDB.</td></tr>
+  <tr><td>Za dużo repozytoriów do wzbogacenia</td><td>Dwa przebiegi scoringu. Gwiazdki tylko dla repo kandydatów, reszta na proxy z archiwum.</td></tr>
+  <tr><td>Top 100 nadal pełne botów lub farm</td><td>Lista wykluczeń ręczna, próg 95% w jednym repo, podniesienie wagi liczby różnych autorów w popularności.</td></tr>
+  <tr><td>Effect 4 RC zmienia API</td><td>Pinowana wersja jak w Linkshelf, Effect odizolowany do <code>scripts/</code> i <code>src/server/</code>.</td></tr>
+  <tr><td>Lokalizacja to wolny tekst</td><td>Zakładka Polska na liście aliasów: Poland, Polska, PL plus 30 największych miast. Reszta krajów w v2.</td></tr>
+</table>
+
+<h2>Poza zakresem weekendu</h2>
+<ul>
+  <li>Logowanie GitHub, profile i powiadomienia. Dopiero gdy pojawi się baza.</li>
+  <li>Kraje poza Polską, miasta, zakładka „Rising” z porównaniem sezonów.</li>
+  <li>Reviews i issues w scoringu. Dobre rozszerzenie, ale wymaga kolejnych typów eventów.</li>
+  <li>Publiczne API i oRPC.</li>
+</ul>
+
+<h2>Launch</h2>
+<ul class="check">
+  <li>Post z danymi, nie z apką: trzy zaskakujące obserwacje z top 100 i link</li>
+  <li>Show HN oraz r/opensource tego samego dnia</li>
+  <li>Oznaczenie kilku osób z top 10, które mają zasięgi</li>
+  <li>Polska zakładka na polskim X i w grupach programistycznych</li>
+  <li>Przypięcie repo na profilu, README ze screenem na górze</li>
+</ul>
+
+<footer>Plan przygotowany 5 października 2026. Formuła i stałe to punkt wyjścia do strojenia po pierwszym backfillu.</footer>
+</main>
+</body>
+</html>

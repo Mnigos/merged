@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>merged · who actually got merged this month</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:oklch(12% 0.004 270); --bg-2:oklch(14.5% 0.004 270); --bg-3:oklch(17.5% 0.005 270);
+    --line:oklch(100% 0 0 / .08); --line-2:oklch(100% 0 0 / .14);
+    --fg:oklch(95% 0.004 270); --fg-2:oklch(68% 0.006 270); --fg-3:oklch(62% 0.006 270);
+    --merged:oklch(56% 0.2 300); --merged-soft:oklch(66% 0.17 300 / .14); --merged-line:oklch(66% 0.17 300 / .45);
+    --up:oklch(72% 0.15 150); --down:oklch(68% 0.16 25);
+    --sans:"Inter",ui-sans-serif,system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  html{background:var(--bg);color-scheme:dark}
+  body{margin:0;color:var(--fg);font:15px/1.6 var(--sans);font-feature-settings:"cv11","ss01","tnum";-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  ::selection{background:var(--merged);color:#fff}
+  :focus-visible{outline:2px solid var(--merged);outline-offset:2px;border-radius:6px}
+  a{color:inherit;text-decoration:none}
+  svg{display:block}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+
+  header{position:sticky;top:0;z-index:5;background:oklch(12% 0.004 270 / .92);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;gap:22px;height:56px}
+  .mark{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .mark svg{width:18px;height:18px;color:var(--merged)}
+  .nav nav{display:none;gap:4px}
+  .nav nav a{padding:6px 10px;border-radius:7px;color:var(--fg-2);font-size:14px}
+  .nav nav a:hover,.nav nav a[aria-current]{color:var(--fg);background:var(--bg-3)}
+  .cmd{margin-left:auto;display:flex;align-items:center;gap:8px;height:32px;padding:0 8px 0 10px;border:1px solid var(--line);border-radius:8px;color:var(--fg-2);font-size:13px;background:var(--bg-2)}
+  .cmd kbd{font:500 11.5px var(--mono);color:var(--fg-3);border:1px solid var(--line);border-radius:4px;padding:1px 5px;background:var(--bg)}
+
+  /* hero */
+  .hero{position:relative;padding:48px 0 36px;overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:-200px -200px auto auto;width:720px;height:520px;background:radial-gradient(closest-side,oklch(66% 0.17 300 / .09),transparent 70%);pointer-events:none}
+  .hero .inner{position:relative;display:grid;gap:28px}
+  h1{margin:0;font-size:38px;line-height:1.06;letter-spacing:-.035em;font-weight:600;text-wrap:balance;max-width:16ch}
+  .sub{margin:14px 0 0;color:var(--fg-2);font-size:16px;max-width:48ch;text-wrap:pretty}
+  .lookup{margin-top:24px;display:grid;gap:8px}
+  .field{display:flex;align-items:center;gap:10px;height:48px;padding:0 6px 0 14px;border:1px solid var(--line-2);border-radius:12px;background:var(--bg-2);box-shadow:0 1px 0 oklch(100% 0 0 / .04) inset,0 8px 24px -16px oklch(0% 0 0 / .8)}
+  .field:focus-within{border-color:var(--merged-line);box-shadow:0 0 0 3px var(--merged-soft)}
+  .field svg{width:16px;height:16px;color:var(--fg-3);flex:none}
+  .field input{flex:1;min-width:0;background:none;border:0;outline:0;color:var(--fg);font:500 16px var(--mono);letter-spacing:-.01em}
+  .field input::placeholder{color:var(--fg-3);font-family:var(--sans);font-weight:400}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:9px;font-weight:600;font-size:14px;border:1px solid transparent;white-space:nowrap;cursor:pointer;transition:background .15s ease,border-color .15s ease,transform .15s cubic-bezier(.2,.7,.2,1)}
+  .btn.white{background:var(--fg);color:var(--bg)}
+  .btn.white:hover{background:#fff}
+  .btn.ghost{border-color:var(--line-2);color:var(--fg);background:transparent}
+  .btn.ghost:hover{background:var(--bg-3)}
+  .btn svg{width:14px;height:14px}
+  .hint{color:var(--fg-3);font-size:13px}
+  .hint b{color:var(--fg-2);font-weight:500}
+
+  /* the result, drawn as a merged pull request */
+  .result{border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--bg-3),var(--bg-2));box-shadow:0 1px 0 oklch(100% 0 0 / .05) inset,0 24px 48px -32px oklch(0% 0 0 / .9);padding:18px 18px 16px;animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.result{animation:none}}
+  .state{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px 0 8px;border-radius:999px;background:var(--merged);color:#fff;font-weight:600;font-size:13px}
+  .state svg{width:14px;height:14px}
+  .result .head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .result .head time{color:var(--fg-3);font-size:13px}
+  .result h2{margin:14px 0 4px;font-size:22px;line-height:1.25;letter-spacing:-.025em;font-weight:600;text-wrap:balance}
+  .result h2 code{font:500 .92em var(--mono);letter-spacing:0;color:var(--fg)}
+  .result .meta{margin:0;color:var(--fg-2);font-size:14px}
+  .result .meta b{color:var(--fg);font-weight:600}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin:16px 0;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .stats div{background:var(--bg-2);padding:10px 12px}
+  .stats b{display:block;font-size:20px;font-weight:600;letter-spacing:-.03em;line-height:1.15}
+  .stats b em{font-style:normal;color:var(--fg-3);font-size:13px;font-weight:500;letter-spacing:0;margin-left:3px;white-space:nowrap}
+  .stats span{color:var(--fg-3);font-size:12.5px}
+  @media (max-width:859px){.stats b{font-size:19px} .stats b em{display:block;margin:2px 0 0;font-size:12px}}
+  .repos{display:grid;gap:6px;margin:0 0 16px;padding:0;list-style:none}
+  .repos li{display:grid;grid-template-columns:1fr auto;gap:10px;font-size:13.5px;color:var(--fg-2)}
+  .repos li code{font:500 13px var(--mono);color:var(--fg)}
+  .repos li span{color:var(--fg-3)}
+  .result .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .result .acts .hint{margin-left:auto}
+
+  /* the list */
+  .list{padding:8px 0 56px}
+  .listhead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18px 0 14px}
+  .listhead h3{margin:0;font-size:17px;font-weight:600;letter-spacing:-.02em}
+  .season{display:flex;align-items:center;gap:10px;color:var(--fg-3);font-size:13px}
+  .season i{display:block;width:72px;height:4px;border-radius:2px;background:var(--bg-3);position:relative;overflow:hidden}
+  .season i::after{content:"";position:absolute;inset:0 auto 0 0;width:16%;background:var(--fg-2);border-radius:2px}
+  .seg{margin-left:auto;display:flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:9px;background:var(--bg-2);max-width:100%;overflow-x:auto;scrollbar-width:none}
+  .seg::-webkit-scrollbar{display:none}
+  .seg a{padding:5px 10px;border-radius:6px;color:var(--fg-2);font-size:13px;font-weight:500;white-space:nowrap}
+  .seg a[aria-current]{background:var(--bg-3);color:var(--fg);box-shadow:0 1px 0 oklch(100% 0 0 / .05) inset}
+  table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg-2)}
+  th{font-size:12px;font-weight:500;color:var(--fg-3);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--bg-2)}
+  td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:14px}
+  tr:last-child td{border-bottom:0}
+  tbody tr{transition:background .12s ease}
+  tbody tr:hover td{background:var(--bg-3)}
+  tr.you td{background:var(--merged-soft)}
+  tr.you td:first-child{box-shadow:inset 2px 0 0 var(--merged)}
+  td.rank{width:44px;color:var(--fg-3);font-weight:500;text-align:right;padding-right:4px}
+  tr:nth-child(-n+3) td.rank{color:var(--fg)}
+  .who{display:flex;align-items:center;gap:10px;min-width:0}
+  .av{width:28px;height:28px;border-radius:50%;flex:none;background:var(--bg-3);border:1px solid var(--line-2);display:grid;place-items:center;font:500 11px var(--mono);color:var(--fg-2)}
+  .who b{font-weight:600;font-size:14px;letter-spacing:-.01em;display:block;line-height:1.2}
+  .who small{display:block;color:var(--fg-3);font-size:12px;line-height:1.3}
+  td.repo{color:var(--fg-2);font-size:13px;max-width:30ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  td.repo code{font:500 12.5px var(--mono);color:var(--fg-2)}
+  td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  td.score{font-weight:600;color:var(--fg)}
+  .d{display:inline-flex;align-items:center;gap:3px;font-size:12.5px;font-weight:500;color:var(--fg-3)}
+  .d svg{width:10px;height:10px}
+  .d.up{color:var(--up)} .d.down{color:var(--down)}
+  .more{display:flex;justify-content:center;padding:12px;border-top:1px solid var(--line);color:var(--fg-2);font-size:13.5px;background:var(--bg-2)}
+  .more:hover{color:var(--fg)}
+  .hide-m{display:none}
+
+  /* method */
+  .method{padding:28px 0 56px;border-top:1px solid var(--line)}
+  .method .grid{display:grid;gap:22px}
+  .method h3{margin:0;font-size:22px;letter-spacing:-.03em;font-weight:600;max-width:20ch;line-height:1.2}
+  .method dl{margin:0;display:grid;gap:14px}
+  .method dt{font-weight:600;font-size:14px}
+  .method dd{margin:3px 0 0;color:var(--fg-2);font-size:14px;max-width:52ch}
+  .method dd code{font:500 12.5px var(--mono);color:var(--fg)}
+
+  footer{border-top:1px solid var(--line);padding:22px 0 44px;display:flex;flex-wrap:wrap;gap:10px 24px;color:var(--fg-3);font-size:13px}
+  footer a{color:var(--fg-2)}
+  footer .r{margin-left:auto}
+
+  @media (min-width:860px){
+    .wrap{padding:0 32px}
+    .nav nav{display:flex}
+    .hero{padding:72px 0 48px}
+    .hero .inner{grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+    h1{font-size:56px}
+    .sub{font-size:17px}
+    .lookup{max-width:460px}
+    .hide-m{display:table-cell}
+    .method .grid{grid-template-columns:1fr 1.4fr;gap:48px}
+    .method dl{grid-template-columns:1fr 1fr;gap:18px 32px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="mark" href="#"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="3" r="1.6"/><circle cx="4" cy="13" r="1.6"/><circle cx="12" cy="8" r="1.6"/><path d="M4 4.6v6.8M4.6 6.2c1.2 1.1 3 1.7 5.8 1.8"/></svg>merged</a>
+    <nav><a href="#" aria-current="page">Leaderboard</a><a href="#">Methodology</a><a href="#">Badge</a></nav>
+    <a class="cmd" href="#login">Search a login <kbd>⌘K</kbd></a>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap inner">
+      <div>
+        <h1>Who actually got merged this month.</h1>
+        <p class="sub">A monthly ranking of open source contributors, built only from pull requests that someone else merged. Bots, your own repos and backdated commits count for nothing.</p>
+        <form class="lookup" onsubmit="return false">
+          <label class="field">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="login" value="k-wojcik" placeholder="GitHub login" autocomplete="off" spellcheck="false" aria-label="GitHub login">
+            <button class="btn white" type="submit">Check</button>
+          </label>
+          <span class="hint">No sign-in. <b>212,418</b> contributors scored so far in October.</span>
+        </form>
+      </div>
+
+      <article class="result" aria-label="Result for k-wojcik">
+        <div class="head">
+          <span class="state"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="4" cy="3" r="1.5"/><circle cx="4" cy="13" r="1.5"/><circle cx="12" cy="8" r="1.5"/><path d="M4 4.5v7M4.5 6c1.2 1.1 3 1.7 6 1.9"/></svg>Merged</span>
+          <time datetime="2026-10">October 2026 · day 5 of 31 · projected</time>
+        </div>
+        <h2><code>k-wojcik</code> got merged 41 times into 8 repositories</h2>
+        <p class="meta">Krzysztof Wójcik · Wrocław, Poland · <b>#4</b> worldwide, <b>#1</b> in Poland · up 6 since September</p>
+        <div class="stats">
+          <div><b>#4<em>of 212,418</em></b><span>rank</span></div>
+          <div><b>3,902<em>pts</em></b><span>score</span></div>
+          <div><b>0.02%</b><span>top percentile</span></div>
+        </div>
+        <ul class="repos">
+          <li><code>tanstack/router</code><span>19 merged · 1,170 pts</span></li>
+          <li><code>vitejs/vite</code><span>8 merged · 848 pts</span></li>
+          <li><code>tanstack/query</code><span>6 merged · 612 pts</span></li>
+          <li><span style="color:var(--fg-3)">5 more repositories</span><span>8 merged · 1,272 pts</span></li>
+        </ul>
+        <div class="acts">
+          <a class="btn white" href="#"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-7l-5.5-7.2L4.2 22H1l8.2-9.4L1 2h7.2l5 6.6L18.9 2zm-1.2 18h1.9L7.4 3.9H5.3L17.7 20z"/></svg>Share</a>
+          <a class="btn ghost" href="#">Copy badge</a>
+          <span class="hint">Recomputed daily, 06:00 UTC</span>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="list">
+    <div class="wrap">
+      <div class="listhead">
+        <h3>Leaderboard</h3>
+        <span class="season"><i aria-hidden="true"></i>October, day 5 of 31</span>
+        <div class="seg" role="tablist"><a href="#" aria-current="page">Global</a><a href="#">Poland</a><a href="#">TypeScript</a><a href="#">Rust</a><a href="#">Python</a><a href="#">Go</a></div>
+      </div>
+      <table>
+        <thead><tr><th class="rank">#</th><th>Contributor</th><th class="hide-m">Top repository</th><th class="n hide-m">Merged</th><th class="n">Score</th><th class="n">Δ</th></tr></thead>
+        <tbody>
+          <tr><td class="rank">1</td><td><div class="who"><span class="av">TM</span><div><b>terryminh</b><small>Shanghai</small></div></div></td><td class="repo hide-m"><code>apache/shardingsphere</code> +5</td><td class="n hide-m">61</td><td class="n score">4,812</td><td class="n"><span class="d up"><svg viewBox="0 0 10 10"><path d="M5 1l4.5 8h-9z" fill="currentColor"/></svg>2</span></td></tr>
+          <tr><td class="rank">2</td><td><div class="who"><span class="av">SV</span><div><b>svarlamov</b><small>Berlin</small></div></div></td><td class="repo hide-m"><code>kubernetes/kubernetes</code> +10</td><td class="n hide-m">48</td><td class="n score">4,390</td><td class="n"><span class="d down"><svg viewBox="0 0 10 10"><path d="M5 9L.5 1h9z" fill="currentColor"/></svg>1</span></td></tr>
+          <tr><td class="rank">3</td><td><div class="who"><span class="av">AQ</span><div><b>aqrln</b><small>Lisbon</small></div></div></td><td class="repo hide-m"><code>rust-lang/rust</code> +4</td><td class="n hide-m">50</td><td class="n score">4,117</td><td class="n"><span class="d">new</span></td></tr>
+          <tr class="you"><td class="rank">4</td><td><div class="who"><span class="av">KW</span><div><b>k-wojcik</b><small>Wrocław</small></div></div></td><td class="repo hide-m"><code>tanstack/router</code> +7</td><td class="n hide-m">41</td><td class="n score">3,902</td><td class="n"><span class="d up"><svg viewBox="0 0 10 10"><path d="M5 1l4.5 8h-9z" fill="currentColor"/></svg>6</span></td></tr>
+          <tr><td class="rank">5</td><td><div class="who"><span class="av">LG</span><div><b>lgrenier</b><small>San Francisco</small></div></div></td><td class="repo hide-m"><code>observablehq/plot</code> +1</td><td class="n hide-m">38</td><td class="n score">3,744</td><td class="n"><span class="d down"><svg viewBox="0 0 10 10"><path d="M5 9L.5 1h9z" fill="currentColor"/></svg>2</span></td></tr>
+          <tr><td class="rank">6</td><td><div class="who"><span class="av">YN</span><div><b>yuki-nkmr</b><small>Tokyo</small></div></div></td><td class="repo hide-m"><code>denoland/deno</code> +6</td><td class="n hide-m">35</td><td class="n score">3,561</td><td class="n"><span class="d up"><svg viewBox="0 0 10 10"><path d="M5 1l4.5 8h-9z" fill="currentColor"/></svg>1</span></td></tr>
+          <tr><td class="rank">7</td><td><div class="who"><span class="av">PR</span><div><b>priyar</b><small>Bengaluru</small></div></div></td><td class="repo hide-m"><code>pytorch/pytorch</code> +1</td><td class="n hide-m">29</td><td class="n score">3,380</td><td class="n"><span class="d">new</span></td></tr>
+          <tr><td class="rank">8</td><td><div class="who"><span class="av">LD</span><div><b>ldecoster</b><small>Ghent</small></div></div></td><td class="repo hide-m"><code>home-assistant/core</code> +2</td><td class="n hide-m">33</td><td class="n score">3,190</td><td class="n"><span class="d up"><svg viewBox="0 0 10 10"><path d="M5 1l4.5 8h-9z" fill="currentColor"/></svg>3</span></td></tr>
+          <tr><td class="rank">9</td><td><div class="who"><span class="av">OA</span><div><b>o-aliyev</b><small>Baku</small></div></div></td><td class="repo hide-m"><code>nestjs/nest</code> +5</td><td class="n hide-m">27</td><td class="n score">3,044</td><td class="n"><span class="d down"><svg viewBox="0 0 10 10"><path d="M5 9L.5 1h9z" fill="currentColor"/></svg>4</span></td></tr>
+          <tr><td class="rank">10</td><td><div class="who"><span class="av">EH</span><div><b>ehlers</b><small>Oslo</small></div></div></td><td class="repo hide-m"><code>golang/go</code> +1</td><td class="n hide-m">24</td><td class="n score">2,915</td><td class="n"><span class="d up"><svg viewBox="0 0 10 10"><path d="M5 1l4.5 8h-9z" fill="currentColor"/></svg>12</span></td></tr>
+        </tbody>
+      </table>
+      <a class="more" href="#">Show positions 11 to 100</a>
+    </div>
+  </section>
+
+  <section class="method">
+    <div class="wrap grid">
+      <h3>Every point is someone else's merge decision.</h3>
+      <dl>
+        <div><dt>What counts</dt><dd>Pull requests merged by another person into a repository you don't own. Each one scores <code>log10(stars + 10)</code>.</dd></div>
+        <div><dt>What doesn't</dt><dd>Commits to your own repos, bots by login pattern and list, backdated history. Self-merges count half.</dd></div>
+        <div><dt>The cap</dt><dd>No single repository can be more than 30% of a score, so a friendly maintainer can't carry you.</dd></div>
+        <div><dt>The season</dt><dd>Calendar month, recomputed daily from GH Archive. Ranks are projected until the month closes.</dd></div>
+      </dl>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span>1,284,902 merged PRs counted in October · 41,733 dropped</span>
+  <span>Demo data: every name and number is synthetic.</span>
+  <span class="r">Built by <a href="#">@Mnigos</a> · <a href="#">Source</a></span>
+</footer>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# dependencies
+node_modules
+
+# build output
+.output
+.nitro
+.vercel
+.vinxi
+.tanstack
+dist
+coverage
+
+# env
+.env*
+!.env.example
+
+# os
+.DS_Store
+
+# impeccable: keep config and surface briefs, ignore local state
+.impeccable/*
+!.impeccable/config.json
+!.impeccable/surfaces/
+
+# impeccable engine binaries (~14 MB each, re-downloaded on first run)
+.claude/skills/impeccable/scripts/bin/
+.agents/skills/impeccable/scripts/bin/
+
+# local agent settings
+.claude/settings.local.json

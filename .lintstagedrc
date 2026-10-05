@@ -1,0 +1,3 @@
+{
+	"!(*.gen).{js,jsx,ts,tsx,mjs,mts,cjs,cts,json,jsonc,json5,css,scss,html,md,mdx,yml,yaml,toml}": "ultracite fix"
+}
