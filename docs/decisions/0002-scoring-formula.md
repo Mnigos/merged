@@ -17,13 +17,17 @@ score(contributor) = Σ per repository min( Σ weight(merge kind) × log10(stand
 - **Repository standing:** distinct contributors plus stars in the season (pass 1); real stars from GitHub GraphQL for candidates (pass 2). The `+ 10` offset gives an unknown repository a weight of about 1, so farms of tiny repositories do not pay off.
 - **Per-repository cap:** one repository contributes at most 30% of the contributor's uncapped total.
 - **Exclusions:** bots (`[bot]` suffix and a known list) and own-repo pull requests. Contributors with more than 95% of pull requests in one repository stay off the Global board but keep their result in lookup.
-- All constants live in `src/modules/ranking/domain/scoring.ts` with unit tests.
+- Scoring constants live in `src/modules/ranking/domain/scoring.ts` with unit tests; bot rules live in `src/shared/github/bots.ts`, shared with `ingest`.
 
 ## Consequences
 
 - **Known trade-off, to be revisited:** the cap is relative to the contributor's own total, so a contributor with a single repository keeps only 30% of their uncapped score, and anyone with fewer than four repositories cannot reach 100%. Dedicated maintainers of one project rank below people who spread small pull requests. Revisit with real data after the first backfill; options include a cap against a fixed floor instead of the contributor's own total, or applying the cap only from the fourth repository.
 - Changing a weight or the cap reorders every season it is applied to; record such changes as an amendment here.
 - Pass 1 standing uses archive proxies, so contributors outside the candidate set are scored without real stars.
+
+## Notes
+
+- **2026-10-05:** GH Archive stopped exposing `merged_by` in 2025; a merge is now `action: "merged"` with the author as actor. Ingest cannot tell self-merged from merged, so it keeps the numbers of those pull requests in the daily aggregate. Pass 2 resolves the merger through GitHub GraphQL for candidates only; every other merge into someone else's repository counts as merged.
 
 ## Related
 
