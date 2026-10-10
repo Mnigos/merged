@@ -45,7 +45,7 @@ export const shardEntrySchema = Schema.Struct({
 })
 export type ShardEntry = typeof shardEntrySchema.Type
 
-/** `seasons/<id>/shards/<xx>.json`: every contributor whose login hashes to the shard. */
+/** `seasons/<id>/shards/<xxx>.json`: every contributor whose login hashes to the shard. */
 export const shardFileSchema = Schema.Struct({
 	season: seasonIdSchema,
 	computedAt: computedAtSchema,

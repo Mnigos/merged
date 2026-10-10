@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@effect/vitest'
 import { toSeason } from '../testing/season.mock'
-import { selectCandidates } from './candidates'
+import { MAX_CANDIDATE_REPOSITORIES, selectCandidates } from './candidates'
 import { emptyEnrichment } from './enrichment'
 import { scoreSeason } from './score-season'
 
@@ -22,17 +22,10 @@ describe('selectCandidates', () => {
 		stars: { 'carol-only/x': 0 },
 	})
 	const scored = scoreSeason(season, emptyEnrichment)
-	const allRepositories = [
-		'acme/widgets',
-		'bob-org/x',
-		'carol-only/x',
-		'zeta/app',
-	]
-
-	it('takes the top contributors with their merged PRs and every repository', () => {
+	it('takes the top contributors with their merged PRs and their repositories, most merged PRs first', () => {
 		expect(selectCandidates({ season, scored }, { contributors: 2 })).toEqual({
 			contributors: ['alice', 'bob'],
-			repositories: allRepositories,
+			repositories: ['acme/widgets', 'bob-org/x', 'zeta/app'],
 			pullRequests: [
 				{ repository: 'acme/widgets', number: 1, author: 'alice' },
 				{ repository: 'acme/widgets', number: 2, author: 'alice' },
@@ -45,10 +38,10 @@ describe('selectCandidates', () => {
 		})
 	})
 
-	it('limits contributors and PRs but not repositories', () => {
+	it('limits contributors, their PRs and their repositories', () => {
 		expect(selectCandidates({ season, scored }, { contributors: 1 })).toEqual({
 			contributors: ['alice'],
-			repositories: allRepositories,
+			repositories: ['acme/widgets', 'zeta/app'],
 			pullRequests: [
 				{ repository: 'acme/widgets', number: 1, author: 'alice' },
 				{ repository: 'acme/widgets', number: 2, author: 'alice' },
@@ -60,9 +53,45 @@ describe('selectCandidates', () => {
 		})
 		expect(selectCandidates({ season, scored }, { contributors: 0 })).toEqual({
 			contributors: [],
-			repositories: allRepositories,
+			repositories: [],
 			pullRequests: [],
 		})
+	})
+
+	it('leaves out repositories of contributors outside the candidates', () => {
+		expect(
+			selectCandidates({ season, scored }, { contributors: 100 }).repositories
+		).not.toContain('carol-only/x')
+	})
+
+	it('caps repositories, keeping the ones with the most merged PRs', () => {
+		expect(
+			selectCandidates({ season, scored }, { contributors: 2, repositories: 2 })
+				.repositories
+		).toEqual(['acme/widgets', 'bob-org/x'])
+	})
+
+	it('caps repositories at MAX_CANDIDATE_REPOSITORIES by default', () => {
+		const rows = Array.from(
+			{ length: MAX_CANDIDATE_REPOSITORIES + 1 },
+			(_, index) => ({
+				author: 'alice',
+				repository: `org-${index}/repo`,
+				pullRequests: index === MAX_CANDIDATE_REPOSITORIES ? [1, 2] : [1],
+			})
+		)
+		const bigSeason = toSeason({
+			date: '2026-10-01',
+			rows,
+			stars: Object.fromEntries(rows.map(row => [row.repository, 3])),
+		})
+		const { repositories } = selectCandidates(
+			{ season: bigSeason, scored: scoreSeason(bigSeason, emptyEnrichment) },
+			{ contributors: 1 }
+		)
+
+		expect(repositories).toHaveLength(MAX_CANDIDATE_REPOSITORIES)
+		expect(repositories[0]).toBe(`org-${MAX_CANDIDATE_REPOSITORIES}/repo`)
 	})
 
 	it('never lists an excluded repository', () => {
