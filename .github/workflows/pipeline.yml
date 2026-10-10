@@ -25,7 +25,7 @@ jobs:
   daily:
     name: Ingest, rank, enrich, rank
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
       BLOB_BASE_URL: ${{ vars.BLOB_BASE_URL }}

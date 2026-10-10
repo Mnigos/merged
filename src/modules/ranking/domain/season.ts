@@ -121,99 +121,138 @@ const toSeasonContributors = (
 		])
 	)
 
-interface AssembleSeasonInput {
+interface TotalsTally {
+	merged: number
+	selfMerged: number
+	ownRepo: number
+	stars: number
+}
+
+interface SeasonAccumulatorInput {
 	readonly seasonId: SeasonId
-	readonly days: readonly DailyAggregate[]
 	/** Which lowercase logins are bots; the shared `isBot` rules by default, plus enrichment flags in `BuildSeason`. */
 	readonly isBotLogin?: (login: GitHubLogin) => boolean
 }
 
+/** A season being summed one daily aggregate at a time, so days need not be held in memory together. */
+export interface SeasonAccumulator {
+	readonly seasonId: SeasonId
+	readonly isBotLogin: (login: GitHubLogin) => boolean
+	readonly daysIncluded: IsoDate[]
+	readonly contributions: ContributionTallies
+	readonly bots: ContributionTallies
+	readonly repositoryTallies: Map<string, RepositoryTally>
+	readonly seenPullRequests: Map<string, Set<number>>
+	readonly stars: Map<string, number>
+	readonly totals: TotalsTally
+}
+
+/** An empty season to fold daily aggregates into with `addDay`. */
+export const createSeasonAccumulator = ({
+	seasonId,
+	isBotLogin = isBot,
+}: SeasonAccumulatorInput): SeasonAccumulator => ({
+	seasonId,
+	isBotLogin,
+	daysIncluded: [],
+	contributions: new Map(),
+	bots: new Map(),
+	repositoryTallies: new Map(),
+	seenPullRequests: new Map(),
+	stars: new Map(),
+	totals: { merged: 0, selfMerged: 0, ownRepo: 0, stars: 0 },
+})
+
 /**
- * Sums the season's daily aggregates. Logins and repository names are
+ * Adds one daily aggregate to the season. Logins and repository names are
  * lowercased. A repository and pull request number seen again (archive files
- * can repeat events) counts once. Rows of manually excluded repositories are
- * dropped; rows of bots are kept apart and do not count as contributors, for
- * standing or for totals. A repository's contributors are the distinct outside
+ * can repeat events) counts once, the first day added keeping it. Rows of
+ * manually excluded repositories are dropped; rows of bots are kept apart and
+ * do not count as contributors, for standing or for totals.
+ */
+export function addDay(accumulator: SeasonAccumulator, day: DailyAggregate) {
+	const { totals } = accumulator
+	accumulator.daysIncluded.push(day.date)
+	totals.ownRepo += day.totals.ownRepo
+	totals.stars += day.totals.stars
+	for (const row of day.contributions) {
+		const repository = row.repository.toLowerCase()
+		if (isExcludedRepository(repository)) continue
+
+		const author = githubLoginSchema.make(row.author.toLowerCase())
+		const { fresh, repeated } = takeFreshNumbers(
+			getOrInsert(accumulator.seenPullRequests, repository, () => new Set()),
+			row.mergedPullRequests
+		)
+		const merged = Math.max(0, row.merged - repeated)
+		if (merged + row.selfMerged === 0) continue
+
+		const bot = accumulator.isBotLogin(author)
+		const tally = getOrInsert(
+			getOrInsert(
+				bot ? accumulator.bots : accumulator.contributions,
+				author,
+				() => new Map<string, ContributionTally>()
+			),
+			repository,
+			() => ({ merged: 0, selfMerged: 0, mergedPullRequests: new Set() })
+		)
+		tally.merged += merged
+		tally.selfMerged += row.selfMerged
+		for (const number of fresh) tally.mergedPullRequests.add(number)
+		if (bot) continue
+
+		const repositoryTally = getOrInsert(
+			accumulator.repositoryTallies,
+			repository,
+			() => ({ authors: new Set(), mergedPullRequests: 0 })
+		)
+		repositoryTally.authors.add(author)
+		repositoryTally.mergedPullRequests += merged + row.selfMerged
+		totals.merged += merged
+		totals.selfMerged += row.selfMerged
+	}
+	for (const repository of day.repositories) {
+		const name = repository.repository.toLowerCase()
+		accumulator.stars.set(
+			name,
+			(accumulator.stars.get(name) ?? 0) + repository.stars
+		)
+	}
+}
+
+/**
+ * The summed season. A repository's contributors are the distinct outside
  * authors across the season (summing daily `mergeAuthors` would count an
  * author once per day); stars are summed over every day.
  */
-export function assembleSeason({
-	seasonId,
-	days,
-	isBotLogin = isBot,
-}: AssembleSeasonInput): Season {
-	const contributions: ContributionTallies = new Map()
-	const bots: ContributionTallies = new Map()
-	const repositoryTallies = new Map<string, RepositoryTally>()
-	const seenPullRequests = new Map<string, Set<number>>()
-	const stars = new Map<string, number>()
-	const totals = { merged: 0, selfMerged: 0, ownRepo: 0, stars: 0 }
-
-	for (const day of days) {
-		totals.ownRepo += day.totals.ownRepo
-		totals.stars += day.totals.stars
-		for (const row of day.contributions) {
-			const repository = row.repository.toLowerCase()
-			if (isExcludedRepository(repository)) continue
-
-			const author = githubLoginSchema.make(row.author.toLowerCase())
-			const { fresh, repeated } = takeFreshNumbers(
-				getOrInsert(seenPullRequests, repository, () => new Set()),
-				row.mergedPullRequests
-			)
-			const merged = Math.max(0, row.merged - repeated)
-			if (merged + row.selfMerged === 0) continue
-
-			const bot = isBotLogin(author)
-			const tally = getOrInsert(
-				getOrInsert(
-					bot ? bots : contributions,
-					author,
-					() => new Map<string, ContributionTally>()
-				),
+export const finishSeason = (accumulator: SeasonAccumulator): Season => ({
+	seasonId: accumulator.seasonId,
+	daysIncluded: accumulator.daysIncluded.toSorted(),
+	contributors: toSeasonContributors(accumulator.contributions),
+	bots: toSeasonContributors(accumulator.bots),
+	repositories: new Map(
+		[...accumulator.repositoryTallies].map(([repository, tally]) => [
+			repository,
+			{
 				repository,
-				() => ({ merged: 0, selfMerged: 0, mergedPullRequests: new Set() })
-			)
-			tally.merged += merged
-			tally.selfMerged += row.selfMerged
-			for (const number of fresh) tally.mergedPullRequests.add(number)
-			if (bot) continue
+				contributors: tally.authors.size,
+				starsInSeason: accumulator.stars.get(repository) ?? 0,
+				mergedPullRequests: tally.mergedPullRequests,
+			},
+		])
+	),
+	totals: { ...accumulator.totals },
+})
 
-			const repositoryTally = getOrInsert(
-				repositoryTallies,
-				repository,
-				() => ({
-					authors: new Set(),
-					mergedPullRequests: 0,
-				})
-			)
-			repositoryTally.authors.add(author)
-			repositoryTally.mergedPullRequests += merged + row.selfMerged
-			totals.merged += merged
-			totals.selfMerged += row.selfMerged
-		}
-		for (const repository of day.repositories) {
-			const name = repository.repository.toLowerCase()
-			stars.set(name, (stars.get(name) ?? 0) + repository.stars)
-		}
-	}
+interface AssembleSeasonInput extends SeasonAccumulatorInput {
+	readonly days: readonly DailyAggregate[]
+}
 
-	return {
-		seasonId,
-		daysIncluded: days.map(day => day.date).toSorted(),
-		contributors: toSeasonContributors(contributions),
-		bots: toSeasonContributors(bots),
-		repositories: new Map(
-			[...repositoryTallies].map(([repository, tally]) => [
-				repository,
-				{
-					repository,
-					contributors: tally.authors.size,
-					starsInSeason: stars.get(repository) ?? 0,
-					mergedPullRequests: tally.mergedPullRequests,
-				},
-			])
-		),
-		totals,
-	}
+/** Sums the season's daily aggregates in the given order, see `addDay` and `finishSeason`. */
+export function assembleSeason({ days, ...input }: AssembleSeasonInput) {
+	const accumulator = createSeasonAccumulator(input)
+	for (const day of days) addDay(accumulator, day)
+
+	return finishSeason(accumulator)
 }

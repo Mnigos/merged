@@ -21,7 +21,8 @@ interface CountsInput {
  * or it has at least 10 stars: another outside contributor merged into it, it
  * got at least `MIN_STARS_IN_SEASON` stars in the season, or enrichment reports
  * at least `MIN_REAL_STARS` stars. Repositories nobody else cares about cannot
- * be farmed. Once every repository is enriched this converges to real stars.
+ * be farmed. Candidates' repositories converge to real stars once enriched;
+ * the rest keep the season conditions.
  */
 export const repositoryCounts = ({
 	contributors,

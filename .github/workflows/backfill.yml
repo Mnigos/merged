@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       from:
-        description: First UTC day to ingest, YYYY-MM-DD
+        description: First UTC day to ingest, YYYY-MM-DD; keep a range under about 20 days per run (a day takes 5–10 min)
         required: true
         type: string
       to:
@@ -27,7 +27,7 @@ jobs:
   ingest:
     name: Ingest range, rank, enrich, rank
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360
     env:
       BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
       BLOB_BASE_URL: ${{ vars.BLOB_BASE_URL }}

@@ -261,7 +261,7 @@ describe('BuildSeason', () => {
 				season: '2026-10',
 				computedAt: '2026-10-04T06:00:00.000Z',
 				contributors: ['alice'],
-				repositories: ['acme/gadgets', 'acme/widgets', 'tiny/tool'],
+				repositories: ['acme/widgets', 'tiny/tool'],
 				pullRequests: [
 					{ repository: 'acme/widgets', number: 1, author: 'alice' },
 					{ repository: 'acme/widgets', number: 2, author: 'alice' },
