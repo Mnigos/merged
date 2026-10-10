@@ -118,6 +118,18 @@ export default defineConfig({
 		],
 		'typescript/no-non-null-assertion': 'off',
 		'typescript/parameter-properties': 'off',
+		'typescript/only-throw-error': [
+			'error',
+			{
+				allow: [
+					{
+						from: 'package',
+						package: '@tanstack/router-core',
+						name: ['Redirect', 'NotFoundError'],
+					},
+				],
+			},
+		],
 	},
 	overrides: [
 		{
