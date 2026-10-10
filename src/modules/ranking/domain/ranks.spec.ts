@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@effect/vitest'
-import { toCompetitionRanks, toPercentiles } from './ranks'
+import { toCompetitionRanks, toPercentiles, topShareOf } from './ranks'
 
 const sameNumber = (previous: number, current: number) => previous === current
 
@@ -35,5 +35,21 @@ describe('toPercentiles', () => {
 
 	it('gives everyone 0 when all scores tie', () => {
 		expect(toPercentiles([4, 4, 4])).toEqual([0, 0, 0])
+	})
+})
+
+describe('topShareOf', () => {
+	it.each([
+		[99.9, 0.1],
+		[97.3, 2.7],
+		[50, 50],
+		[0, 100],
+		[100, 0.1],
+		[99.99, 0.1],
+		[101, 0.1],
+		[97.26, 2.7],
+		[83.7, 16.3],
+	])('turns percentile %d into the top %d%%', (percentile, share) => {
+		expect(topShareOf(percentile)).toBe(share)
 	})
 })

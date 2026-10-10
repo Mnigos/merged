@@ -150,6 +150,7 @@ describe('BuildSeason', () => {
 							contributors: 4,
 							repositories: 3,
 							mergedPullRequests: 8,
+							excludedBots: 1,
 						},
 						previousSeason,
 					],

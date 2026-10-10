@@ -22,6 +22,8 @@ export const seasonIndexEntrySchema = Schema.Struct({
 	repositories: countSchema,
 	/** Merged and self-merged pull requests, own-repo excluded. */
 	mergedPullRequests: countSchema,
+	/** Logins excluded as bots; absent in indexes written before it was added. */
+	excludedBots: Schema.optional(countSchema),
 })
 export type SeasonIndexEntry = typeof seasonIndexEntrySchema.Type
 
