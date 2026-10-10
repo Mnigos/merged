@@ -8,7 +8,12 @@ import {
 } from '../testing/season.mock'
 import { emptyEnrichment } from './enrichment'
 import { scoreSeason } from './score-season'
-import { assembleSeason } from './season'
+import {
+	addDay,
+	assembleSeason,
+	createSeasonAccumulator,
+	finishSeason,
+} from './season'
 
 describe('assembleSeason', () => {
 	const season = toSeason(
@@ -194,5 +199,46 @@ describe('assembleSeason', () => {
 		expect(empty.contributors.size).toBe(0)
 		expect(empty.repositories.size).toBe(0)
 		expect(empty.daysIncluded).toEqual([])
+	})
+
+	it('folds days one at a time into the same season as assembling them together', () => {
+		const days = [
+			toDay({
+				date: '2026-10-01',
+				rows: [
+					{ author: 'Alice', repository: 'Acme/Widgets', pullRequests: [9] },
+					{
+						author: 'robo[bot]',
+						repository: 'acme/widgets',
+						pullRequests: [4],
+					},
+				],
+				stars: { 'acme/widgets': 2 },
+			}),
+			toDay({
+				date: '2026-10-02',
+				rows: [
+					{ author: 'alice', repository: 'acme/widgets', pullRequests: [9, 5] },
+					{
+						author: 'bob',
+						repository: 'acme/widgets',
+						merged: 0,
+						selfMerged: 1,
+					},
+				],
+				stars: { 'acme/widgets': 3 },
+				ownRepo: { alice: 2 },
+			}),
+		]
+		const accumulator = createSeasonAccumulator({ seasonId })
+		for (const day of days) addDay(accumulator, day)
+
+		expect(finishSeason(accumulator)).toEqual(
+			assembleSeason({ seasonId, days })
+		)
+		expect(finishSeason(accumulator)).toMatchObject({
+			daysIncluded: ['2026-10-01', '2026-10-02'],
+			totals: { merged: 2, selfMerged: 1, ownRepo: 2, stars: 5 },
+		})
 	})
 })

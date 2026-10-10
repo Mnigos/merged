@@ -29,13 +29,13 @@ This file is not a context document. Module ownership lives in [ARCHITECTURE.md]
 
 ## Pipeline
 
-| Term                | Definition                                                                                                                                                | Aliases to avoid             |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| **GH Archive hour** | One hourly gzipped JSON lines file from GH Archive; a day has 24.                                                                                         | dump, event file             |
-| **Daily aggregate** | Per-day rollup of merged pull requests per contributor and repository plus WatchEvents per repository.                                                    | day file, daily stats, cache |
-| **Enrichment**      | Fetching real stars and language of the season's repositories, and name, location, avatar and pull request mergers of candidates, through GitHub GraphQL. | sync, scraping, hydration    |
-| **Candidate**       | Contributor or repository that pass 1 scoring selects for enrichment.                                                                                     | shortlist, top users         |
-| **Scoring pass**    | Pass 1 scores with archive proxies to pick candidates; pass 2 rescores with enriched stars.                                                               | run, iteration               |
+| Term                | Definition                                                                                                                                                   | Aliases to avoid             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
+| **GH Archive hour** | One hourly gzipped JSON lines file from GH Archive; a day has 24.                                                                                            | dump, event file             |
+| **Daily aggregate** | Per-day rollup of merged pull requests per contributor and repository plus WatchEvents per repository.                                                       | day file, daily stats, cache |
+| **Enrichment**      | Fetching real stars and language of the candidates' repositories, and name, location, avatar and pull request mergers of candidates, through GitHub GraphQL. | sync, scraping, hydration    |
+| **Candidate**       | Contributor or repository that pass 1 scoring selects for enrichment.                                                                                        | shortlist, top users         |
+| **Scoring pass**    | Pass 1 scores with archive proxies to pick candidates; pass 2 rescores with enriched stars.                                                                  | run, iteration               |
 
 ## Ranking
 
@@ -49,7 +49,7 @@ This file is not a context document. Module ownership lives in [ARCHITECTURE.md]
 | **Rank**                | A contributor's 1-based position on a board by score.                                                                                                                                                                                                                                         | place, position, rating          |
 | **Percentile**          | Share of scored contributors in the season with a lower score than this contributor.                                                                                                                                                                                                          | top %, ranking %                 |
 | **Board**               | One tab of the leaderboard with its own ranks: Global, Poland, or a language.                                                                                                                                                                                                                 | tab (in code), list, leaderboard |
-| **Shard**               | One of 256 Blob files holding score, rank, and percentile for every contributor, keyed by login hash.                                                                                                                                                                                         | page, chunk, partition           |
+| **Shard**               | One of 1024 Blob files (100–300 KB) holding score, rank, and percentile for every contributor, keyed by login hash.                                                                                                                                                                           | page, chunk, partition           |
 
 ## Sharing
 

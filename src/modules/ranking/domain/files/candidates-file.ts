@@ -15,7 +15,7 @@ export const candidatesFileSchema = Schema.Struct({
 	season: seasonIdSchema,
 	computedAt: computedAtSchema,
 	contributors: Schema.Array(githubLoginSchema),
-	/** Every repository of the season, sorted, independent of the contributor limit; enrichment fetches real stars for all of them. */
+	/** Every repository of the candidate contributors, at most `MAX_CANDIDATE_REPOSITORIES`, most merged pull requests in the season first; enrichment fetches their real stars. */
 	repositories: Schema.Array(Schema.String),
 	/** The candidates' merged pull requests whose merger is unknown. */
 	pullRequests: Schema.Array(candidatePullRequestSchema),

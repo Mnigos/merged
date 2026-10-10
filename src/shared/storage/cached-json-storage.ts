@@ -4,7 +4,7 @@ import { JsonStorage } from './json-storage.port'
 /** How long a read is served from memory before the inner storage is asked again. */
 export const READ_CACHE_TTL = Duration.seconds(60)
 
-/** Most paths kept at once; a season has 256 shards plus a handful of boards. */
+/** Most paths kept at once: the recently read of a season's 1024 shards plus a handful of boards. */
 export const READ_CACHE_MAX_ENTRIES = 256
 
 interface CachedText {
