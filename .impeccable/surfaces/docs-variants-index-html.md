@@ -1,8 +1,8 @@
 ---
 version: 1
 slug: "docs-variants-index-html"
-primary_target: "docs/variants/index.html"
-related_targets: ["docs/variants/d-canon.html"]
+primary_target: "src/routes/index.tsx"
+related_targets: ["src/routes/u.$login.tsx", "docs/variants/d-canon.html"]
 ---
 
 # Surface: homepage `/` (and the share card it feeds)
@@ -55,3 +55,8 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 ## Approval (2026-10-05)
 
 User approved variant D (docs/variants/d-canon.html, the named canon: Raycast, Resend, Linear, PostHog, dark) as the design direction for the homepage and the share card. A, B and C are archived and must not be revisited. Implementation inherits D's world: tinted near-black ground, 1px tinted borders, white primary buttons, Inter with tight display tracking, JetBrains Mono for logins and repository names only, merged purple as the single accent, the result rendered as a merged pull request.
+
+## Implemented (2026-10-10)
+
+Shipped on `/` and `/u/$login` from D's tokens in `src/styles.css`; components live in `src/modules/ranking/presentation/components/` and `src/shared/ui/`.
+Dropped until data exists: rank delta, language tabs, badge button, "projected".

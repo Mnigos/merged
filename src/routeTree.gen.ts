@@ -10,33 +10,79 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MethodologyRouteImport } from './routes/methodology'
+import { Route as UIndexRouteImport } from './routes/u.index'
+import { Route as ULoginRouteImport } from './routes/u.$login'
+import { Route as ApiBadgeLoginRouteImport } from './routes/api/badge.$login'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MethodologyRoute = MethodologyRouteImport.update({
+  id: '/methodology',
+  path: '/methodology',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UIndexRoute = UIndexRouteImport.update({
+  id: '/u/',
+  path: '/u/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ULoginRoute = ULoginRouteImport.update({
+  id: '/u/$login',
+  path: '/u/$login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBadgeLoginRoute = ApiBadgeLoginRouteImport.update({
+  id: '/api/badge/$login',
+  path: '/api/badge/$login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/methodology': typeof MethodologyRoute
+  '/u/$login': typeof ULoginRoute
+  '/u/': typeof UIndexRoute
+  '/api/badge/$login': typeof ApiBadgeLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/methodology': typeof MethodologyRoute
+  '/u/$login': typeof ULoginRoute
+  '/u': typeof UIndexRoute
+  '/api/badge/$login': typeof ApiBadgeLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/methodology': typeof MethodologyRoute
+  '/u/$login': typeof ULoginRoute
+  '/u/': typeof UIndexRoute
+  '/api/badge/$login': typeof ApiBadgeLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/methodology' | '/u/$login' | '/u/' | '/api/badge/$login'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/methodology' | '/u/$login' | '/u' | '/api/badge/$login'
+  id:
+    | '__root__'
+    | '/'
+    | '/methodology'
+    | '/u/$login'
+    | '/u/'
+    | '/api/badge/$login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  MethodologyRoute: typeof MethodologyRoute
+  ULoginRoute: typeof ULoginRoute
+  UIndexRoute: typeof UIndexRoute
+  ApiBadgeLoginRoute: typeof ApiBadgeLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +94,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/methodology': {
+      id: '/methodology'
+      path: '/methodology'
+      fullPath: '/methodology'
+      preLoaderRoute: typeof MethodologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/u/': {
+      id: '/u/'
+      path: '/u'
+      fullPath: '/u/'
+      preLoaderRoute: typeof UIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/u/$login': {
+      id: '/u/$login'
+      path: '/u/$login'
+      fullPath: '/u/$login'
+      preLoaderRoute: typeof ULoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/badge/$login': {
+      id: '/api/badge/$login'
+      path: '/api/badge/$login'
+      fullPath: '/api/badge/$login'
+      preLoaderRoute: typeof ApiBadgeLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  MethodologyRoute: MethodologyRoute,
+  ULoginRoute: ULoginRoute,
+  UIndexRoute: UIndexRoute,
+  ApiBadgeLoginRoute: ApiBadgeLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

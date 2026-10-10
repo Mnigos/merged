@@ -43,3 +43,10 @@ export function toPercentiles(sortedScores: readonly number[]) {
 
 	return percentiles
 }
+
+/**
+ * Share of the season at or above a percentile, in percent with one decimal:
+ * `100 - percentile`, never below 0.1, so the best contributor reads "top 0.1%".
+ */
+export const topShareOf = (percentile: number) =>
+	Math.max(0.1, Math.round((100 - percentile) * 10) / 10)
