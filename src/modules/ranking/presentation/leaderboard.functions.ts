@@ -34,16 +34,12 @@ async function runRead<TValue>(
 ) {
 	let result: Option.Option<TValue>
 	try {
-		result = await runServer(
-			effect.pipe(
-				Effect.tapCause(cause =>
-					Effect.logError('Leaderboard read failed', cause)
-				)
-			)
-		)
-	} catch {
+		result = await runServer(effect)
+	} catch (error) {
+		// Also covers runtime build failures (e.g. missing `BLOB_BASE_URL`); storage errors carry no tokens.
+		console.error('Leaderboard read failed', error)
 		setResponseStatus(500)
-		throw new Error(LOAD_FAILED_MESSAGE)
+		throw new Error(LOAD_FAILED_MESSAGE, { cause: error })
 	}
 	if (Option.isNone(result)) throw notFound()
 
