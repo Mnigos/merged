@@ -1,7 +1,5 @@
 import { parseArgs } from 'node:util'
 import { BunRuntime, BunServices } from '@effect/platform-bun'
-import type { EnrichKindReport } from '@modules/profiles/application/enrich-kind'
-import type { EnrichReport } from '@modules/profiles/application/enrich-report'
 import { Enrich } from '@modules/profiles/application/enrich.service'
 import { DEFAULT_MAX_AGE_DAYS } from '@modules/profiles/domain/freshness'
 import { profilesLayer } from '@modules/profiles/profiles.layer'
@@ -9,9 +7,14 @@ import { Candidates } from '@modules/ranking/application/candidates.service'
 import { candidatesLayer } from '@modules/ranking/ranking.layer'
 import { githubGraphqlHttpLayer } from '@shared/github/github-graphql-http'
 import { seasonIdOf, seasonIdSchema } from '@shared/schema/season-id'
-import { localFileJsonStorageLayer } from '@shared/storage/local-file-json-storage'
-import { Clock, Console, Effect, Layer, Option, Schema } from 'effect'
+import { Clock, Effect, Layer, Option, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
+import { printEnrichReport } from './lib/reports'
+import {
+	STORAGE_OPTION,
+	storageKindSchema,
+	toStorageLayer,
+} from './lib/storage-layer'
 
 const limitSchema = Schema.optional(
 	Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(0)))
@@ -19,6 +22,7 @@ const limitSchema = Schema.optional(
 
 const argsSchema = Schema.Struct({
 	season: seasonIdSchema,
+	storage: storageKindSchema,
 	data: Schema.NonEmptyString,
 	contributors: limitSchema,
 	repositories: limitSchema,
@@ -35,6 +39,7 @@ const readArgs = Effect.gen(function* () {
 	const { values } = parseArgs({
 		options: {
 			season: { type: 'string' },
+			storage: STORAGE_OPTION,
 			data: { type: 'string', default: 'data' },
 			contributors: { type: 'string' },
 			repositories: { type: 'string' },
@@ -46,6 +51,7 @@ const readArgs = Effect.gen(function* () {
 
 	return yield* Schema.decodeUnknownEffect(argsSchema)({
 		season: values.season ?? seasonIdOf(now),
+		storage: values.storage,
 		data: values.data,
 		contributors: toNumber(values.contributors),
 		repositories: toNumber(values.repositories),
@@ -53,38 +59,6 @@ const readArgs = Effect.gen(function* () {
 		maxAgeDays: toNumber(values['max-age-days']) ?? DEFAULT_MAX_AGE_DAYS,
 	})
 })
-
-const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
-const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`
-
-const toKindRow = (kind: EnrichKindReport) => ({
-	requested: kind.requested,
-	cached: kind.cached,
-	fetched: kind.fetched,
-	missing: kind.missing,
-	failed: kind.failed,
-	queries: kind.queries,
-	cost: kind.cost,
-	remaining: kind.remaining ?? '-',
-	file: megabytes(kind.fileBytes),
-})
-
-const printReport = (report: EnrichReport) =>
-	Effect.gen(function* () {
-		yield* Console.table({
-			repositories: toKindRow(report.repositories),
-			contributors: toKindRow(report.contributors),
-			pullRequests: toKindRow(report.pullRequests),
-		})
-		yield* Console.table({
-			season: report.season,
-			queries: report.queries,
-			cost: report.cost,
-			filesWritten: report.filesWritten,
-			written: megabytes(report.bytesWritten),
-			wallTime: seconds(report.durationMs),
-		})
-	})
 
 const program = Effect.gen(function* () {
 	const args = yield* readArgs
@@ -108,7 +82,7 @@ const program = Effect.gen(function* () {
 			Layer.mergeAll(candidatesLayer, profilesLayer).pipe(
 				Layer.provide(
 					Layer.mergeAll(
-						localFileJsonStorageLayer(args.data),
+						toStorageLayer({ storage: args.storage, dataDirectory: args.data }),
 						githubGraphqlHttpLayer.pipe(Layer.provide(FetchHttpClient.layer))
 					)
 				),
@@ -117,7 +91,7 @@ const program = Effect.gen(function* () {
 		)
 	)
 
-	yield* printReport(report)
+	yield* printEnrichReport(report)
 })
 
 BunRuntime.runMain(program)
