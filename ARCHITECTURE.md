@@ -14,13 +14,20 @@ merged is a modular monolith in one package ([ADR 0003](docs/decisions/0003-modu
 | `src/runtime/`      | App composition root: merges module Layers into the runtime that server functions use.          |
 | `src/styles.css`    | Tailwind 4 entry and design tokens.                                                             |
 | `scripts/`          | Pipeline CLI entrypoints (`ingest-day`, `enrich`, `build-ranking`). Wire Layers, call services. |
-| `.github/workflows` | CI, and later the daily cron and backfill workflows.                                            |
+| `.github/workflows` | CI, the daily `pipeline.yml` cron and the manual `backfill.yml`.                                |
 | `docs/`             | Plan, design mockups, and [decision records](docs/decisions).                                   |
 
 ## Flows
 
 ```
-Pipeline (GitHub Actions, daily 06:00 UTC)
+Pipeline (GitHub Actions .github/workflows/pipeline.yml, cron 06:00 UTC)
+  scripts/pipeline.ts --storage blob   one process, write-through cache over Blob
+    ingest-day <yesterday>             skipped when the day exists
+    [on the 1st: build-ranking → enrich → build-ranking for the closed season]
+    build-ranking <season>             pass 1, picks candidates
+    enrich <season>
+    build-ranking <season>             pass 2
+
   scripts/<command>.ts           wires module Layers
     → <module>/application        Effect services and use cases
       → <module>/domain           pure rules (scoring, aggregation)
@@ -80,15 +87,15 @@ Dependencies point inwards: presentation → application → domain. Infrastruct
 
 ## Shared kernel
 
-| Path                  | Holds                                                                                                                                                                                                 |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/schema/`  | Schema helpers and shared branded types (GitHub login, season id, ISO date, ISO date-time).                                                                                                           |
-| `src/shared/storage/` | `JsonStorage` port (read and write text by POSIX-relative path), local-disk adapter, in-memory test adapter; Vercel Blob adapter next.                                                                |
-| `src/shared/github/`  | `GitHubGraphql` port (one query at a time, retry with backoff, rate limit waits) and its HTTP adapter, aliased batch queries in `graphql-batch.ts`, in-memory test layer; **Bot** rules in `bots.ts`. |
-| `src/shared/config/`  | Effect `Config` definitions for tokens (`GITHUB_TOKEN`) and Blob credentials.                                                                                                                         |
-| `src/shared/errors/`  | Cross-module tagged errors such as storage and decode failures.                                                                                                                                       |
-| `src/shared/ui/`      | Reusable, domain-free UI primitives.                                                                                                                                                                  |
-| `src/shared/utils/`   | Domain-agnostic utils with JSDoc.                                                                                                                                                                     |
+| Path                  | Holds                                                                                                                                                                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/schema/`  | Schema helpers and shared branded types (GitHub login, season id, ISO date, ISO date-time).                                                                                                                                                   |
+| `src/shared/storage/` | `JsonStorage` port (read and write text by POSIX-relative path), local-disk adapter, in-memory test adapter, write-through cache decorator, Vercel Blob adapter (public JSON under `BLOB_BASE_URL`, `cacheControlMaxAge` 60 s, reads by URL). |
+| `src/shared/github/`  | `GitHubGraphql` port (one query at a time, retry with backoff, rate limit waits) and its HTTP adapter, aliased batch queries in `graphql-batch.ts`, in-memory test layer; **Bot** rules in `bots.ts`.                                         |
+| `src/shared/config/`  | Effect `Config` definitions for tokens (`GITHUB_TOKEN`) and Blob credentials (`BLOB_READ_WRITE_TOKEN`, `BLOB_BASE_URL`).                                                                                                                      |
+| `src/shared/errors/`  | Cross-module tagged errors such as storage and decode failures.                                                                                                                                                                               |
+| `src/shared/ui/`      | Reusable, domain-free UI primitives.                                                                                                                                                                                                          |
+| `src/shared/utils/`   | Domain-agnostic utils with JSDoc.                                                                                                                                                                                                             |
 
 Modules build typed stores on top of `JsonStorage` in their own `infrastructure/`: each store owns its paths and decodes its files with the module's Schema (`ingest` `json-day-store.ts`, `ranking` `json-season-store.ts`, `profiles` `json-profile-store.ts`).
 
@@ -106,9 +113,11 @@ GH Archive trimmed pull request payloads in 2025: a merge is now `action: "merge
 
 `scripts/enrich.ts` reads the season's candidates through ranking's `Candidates` and hands them to `Enrich` (`profiles/application/enrich.service.ts`), so the module graph stays acyclic. `Enrich` runs over the `ProfileSource` port (`infrastructure/github-profile-source.ts` on the shared `GitHubGraphql`) and the `ProfileStore` port. For each kind (repositories, contributors, pull requests) it keeps fresh entries of the existing file (7 days; a known merger is never refetched), fetches the rest in queries of 100 aliases, one at a time, writes the file every 10 batches and at the end, and reports requested, cached, fetched, missing and failed counts with query cost. Not found (deleted, renamed, private, or an app account, since GraphQL `user` cannot see bots) is recorded as `missing`; any other error under an alias, nested ones included, leaves that item for the next run. The GraphQL adapter retries 5xx, network errors and rate limits with backoff, waits for `retry-after`, `x-ratelimit-reset` or 60 s (a 429, or a 403 about the secondary rate limit; a permission 403 is not retried), pauses until `resetAt` when fewer than 100 points remain, and keeps the token out of error messages. Other modules read the files through `SeasonProfiles`.
 
-Every `build-ranking` regenerates `candidates.json` from its own scoring, so contributors who become counted only in pass 2 have no profile or merger yet. The daily run is therefore `build-ranking → enrich → build-ranking`: pass 1 picks candidates, `enrich` fetches what is missing or stale (cached entries cost nothing), pass 2 scores with it; newcomers of pass 2 are enriched by the next day's run.
+Every `build-ranking` regenerates `candidates.json` from its own scoring, so contributors who become counted only in pass 2 have no profile or merger yet. The daily run is therefore `build-ranking → enrich → build-ranking`: pass 1 picks candidates, `enrich` fetches what is missing or stale (cached entries cost nothing), pass 2 scores with it; newcomers of pass 2 are enriched by the next day's run. On the first of a month `pipeline.ts` runs the chain once more for the season that just closed, so its last newcomers are enriched in the same run before the final build. The steps run in one process over `writeThroughJsonStorageLayer` because Blob's CDN can serve the previous version of an overwritten file for up to a minute.
 
 ## Data files in Blob
+
+Every file is public JSON at `<BLOB_BASE_URL>/<path>` (for example `https://xxxx.public.blob.vercel-storage.com/seasons/index.json`), written in place without a random suffix and with `cacheControlMaxAge` 60 s, so the website sees a recompute within a minute. The pipeline writes with `BLOB_READ_WRITE_TOKEN`, read only at the first write; reads fetch the public URL with `cache-control: no-cache`, so the website needs only `BLOB_BASE_URL`. That header does not guarantee read-after-write: chained pipeline steps rely on the write-through cache of their single process. Pipeline scripts pick the store with `--storage local|blob`; paths are the same on local disk under `data/`.
 
 | Path                                  | Content                                                                                                                                                                                                         | Size       | Writer     |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------- |
