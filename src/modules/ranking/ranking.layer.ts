@@ -3,6 +3,7 @@ import { seasonProfilesLayer } from '@modules/profiles/profiles.layer'
 import { Layer } from 'effect'
 import { BuildSeason } from './application/build-season.service'
 import { Candidates } from './application/candidates.service'
+import { Leaderboard } from './application/leaderboard.service'
 import { jsonSeasonStoreLayer } from './infrastructure/json-season-store'
 import { profilesEnrichmentSourceLayer } from './infrastructure/profiles-enrichment-source'
 
@@ -11,6 +12,14 @@ import { profilesEnrichmentSourceLayer } from './infrastructure/profiles-enrichm
  * the `enrich` script that hands them to profiles.
  */
 export const candidatesLayer = Candidates.layer.pipe(
+	Layer.provide(jsonSeasonStoreLayer)
+)
+
+/**
+ * `Leaderboard` over whatever `JsonStorage` the composition root provides,
+ * for the website's server functions.
+ */
+export const leaderboardLayer = Leaderboard.layer.pipe(
 	Layer.provide(jsonSeasonStoreLayer)
 )
 

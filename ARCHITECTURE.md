@@ -128,7 +128,7 @@ Every file is public JSON at `<BLOB_BASE_URL>/<path>` (for example `https://xxxx
 | `seasons/<YYYY-MM>/candidates.json`   | Pass 1 candidates for enrichment: top contributors, their repositories, their merged pull request numbers                                                                                                       | a few MB   | `ranking`  |
 | `seasons/<YYYY-MM>/tabs/<board>.json` | Top 100 for a board: `global`, `poland` (contributors, with board rank, season percentile, top 3 repositories) and `repositories`; language boards later                                                        | < 100 KB   | `ranking`  |
 | `seasons/<YYYY-MM>/shards/<xx>.json`  | Rank, percentile, score, Poland rank and per-repository breakdown (with `counted`) of every contributor; bots and contributors without a counted repository kept as excluded; 256 shards by FNV-1a of the login | 50–100 KB  | `ranking`  |
-| `seasons/index.json`                  | Seasons newest first: status, days included and missing, recompute time, footer stats                                                                                                                           | 1 KB       | `ranking`  |
+| `seasons/index.json`                  | Seasons newest first: status, days included and missing, recompute time, footer stats (merged pull requests, excluded bots)                                                                                     | 1 KB       | `ranking`  |
 
 Only the writer module decodes and encodes a file; readers go through its application service.
 

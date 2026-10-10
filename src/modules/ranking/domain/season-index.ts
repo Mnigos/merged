@@ -69,7 +69,25 @@ export function toSeasonIndexEntry({
 		contributors: scored.ranked.length,
 		repositories: season.repositories.size,
 		mergedPullRequests: season.totals.merged + season.totals.selfMerged,
+		excludedBots: scored.excluded.filter(
+			contributor => contributor.exclusion === 'bot'
+		).length,
 	}
+}
+
+/**
+ * The last day whose daily aggregate the season includes: the latest day
+ * before the recompute's UTC day that is not missing, or every day of a final
+ * season. `undefined` before any day is included.
+ */
+export function lastDayIncluded(entry: SeasonIndexEntry) {
+	if (entry.daysIncluded === 0) return undefined
+	const computedOn = entry.computedAt.slice(0, 10)
+	const missing = new Set(entry.missingDays)
+
+	return daysInSeason(entry.id).findLast(
+		day => day < computedOn && !missing.has(day)
+	)
 }
 
 /**
