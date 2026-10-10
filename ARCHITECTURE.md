@@ -35,12 +35,12 @@ Request (Vercel)
 
 ## Modules
 
-| Module     | Owns                                                                                                                                                                 |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ingest`   | GH Archive hourly files to **Daily aggregates**. Domain: merged pull request events, daily aggregate. Infrastructure: GH Archive source, daily aggregate Blob store. |
-| `ranking`  | **Score**, **Season**, **Board**, **Rank**, **Percentile**, shards, season index, **Exclusion** rules. Domain holds the scoring formula (`domain/scoring.ts`).       |
-| `profiles` | **Enrichment** of contributors and repositories through GitHub GraphQL: stars, language, location, avatar. Receives the candidate list as input.                     |
-| `share`    | **Share card** (OG image), share text, and the README **Badge** endpoint. Reads ranking and profiles through their application services.                             |
+| Module     | Owns                                                                                                                                                                                                                               |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ingest`   | GH Archive hourly files to **Daily aggregates**. Domain: merged pull request events, daily aggregate. Infrastructure: GH Archive source, daily aggregate Blob store.                                                               |
+| `ranking`  | **Score**, **Season**, **Board**, **Rank**, **Percentile**, shards, season index, **Exclusion** rules. Domain holds the scoring formula (`domain/scoring.ts`).                                                                     |
+| `profiles` | **Enrichment** through GitHub GraphQL: real stars and language of the season's repositories, name, location, company and avatar of candidates, mergers of their pull requests. Receives the candidates as input; never picks them. |
+| `share`    | **Share card** (OG image), share text, and the README **Badge** endpoint. Reads ranking and profiles through their application services.                                                                                           |
 
 Module dependencies are acyclic: `ingest` and `profiles` depend on no module, `ranking` reads `ingest` and `profiles`, `share` reads `ranking` and `profiles`. Scripts orchestrate across modules, for example `enrich` asks `ranking` for candidates and hands them to `profiles`.
 
@@ -80,17 +80,17 @@ Dependencies point inwards: presentation → application → domain. Infrastruct
 
 ## Shared kernel
 
-| Path                  | Holds                                                                                                                                  |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/schema/`  | Schema helpers and shared branded types (GitHub login, season id, ISO date).                                                           |
-| `src/shared/storage/` | `JsonStorage` port (read and write text by POSIX-relative path), local-disk adapter, in-memory test adapter; Vercel Blob adapter next. |
-| `src/shared/github/`  | `GitHubClient` port (batched GraphQL, retry, rate limiter) and its adapter; **Bot** rules in `bots.ts`.                                |
-| `src/shared/config/`  | Effect `Config` definitions for tokens and Blob credentials.                                                                           |
-| `src/shared/errors/`  | Cross-module tagged errors such as storage and decode failures.                                                                        |
-| `src/shared/ui/`      | Reusable, domain-free UI primitives.                                                                                                   |
-| `src/shared/utils/`   | Domain-agnostic utils with JSDoc.                                                                                                      |
+| Path                  | Holds                                                                                                                                                                                                 |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/schema/`  | Schema helpers and shared branded types (GitHub login, season id, ISO date, ISO date-time).                                                                                                           |
+| `src/shared/storage/` | `JsonStorage` port (read and write text by POSIX-relative path), local-disk adapter, in-memory test adapter; Vercel Blob adapter next.                                                                |
+| `src/shared/github/`  | `GitHubGraphql` port (one query at a time, retry with backoff, rate limit waits) and its HTTP adapter, aliased batch queries in `graphql-batch.ts`, in-memory test layer; **Bot** rules in `bots.ts`. |
+| `src/shared/config/`  | Effect `Config` definitions for tokens (`GITHUB_TOKEN`) and Blob credentials.                                                                                                                         |
+| `src/shared/errors/`  | Cross-module tagged errors such as storage and decode failures.                                                                                                                                       |
+| `src/shared/ui/`      | Reusable, domain-free UI primitives.                                                                                                                                                                  |
+| `src/shared/utils/`   | Domain-agnostic utils with JSDoc.                                                                                                                                                                     |
 
-Modules build typed stores on top of `JsonStorage` in their own `infrastructure/`: each store owns its paths and decodes its files with the module's Schema (`ingest` `json-day-store.ts`, `ranking` `json-season-store.ts`).
+Modules build typed stores on top of `JsonStorage` in their own `infrastructure/`: each store owns its paths and decodes its files with the module's Schema (`ingest` `json-day-store.ts`, `ranking` `json-season-store.ts`, `profiles` `json-profile-store.ts`).
 
 ## Ingest
 
@@ -100,19 +100,26 @@ GH Archive trimmed pull request payloads in 2025: a merge is now `action: "merge
 
 ## Ranking
 
-`scripts/build-ranking.ts` runs `BuildSeason` (`ranking/application/build-season.service.ts`) over ingest's `DailyAggregates` application service, the `EnrichmentSource` port, and the `SeasonStore` port; ranking reads days only through `DailyAggregates`, never through ingest's `DayStore` port. It reads every day of the season (missing days are skipped and recorded), sums them into a **Season** (each pull request once, bots and excluded repositories kept out of standing), scores it with `domain/scoring.ts`, and writes candidates, all 256 shards, boards, then `seasons/index.json` last, so a failure mid-run leaves boards and index on the previous build as far as possible. Builds run sequentially, one season at a time; a failed build is repaired by rerunning it. Scoring pass 1 uses `emptyEnrichmentSourceLayer` (archive proxies only); the profiles module will provide an enrichment adapter with real stars, locations, bot flags and mergers for the candidates.
+`scripts/build-ranking.ts` runs `BuildSeason` (`ranking/application/build-season.service.ts`) over ingest's `DailyAggregates` application service, the `EnrichmentSource` port, and the `SeasonStore` port; ranking reads days only through `DailyAggregates`, never through ingest's `DayStore` port. It reads every day of the season (missing days are skipped and recorded), sums them into a **Season** (each pull request once, bots and excluded repositories kept out of standing), scores it with `domain/scoring.ts`, and writes candidates, all 256 shards, boards, then `seasons/index.json` last, so a failure mid-run leaves boards and index on the previous build as far as possible. Builds run sequentially, one season at a time; a failed build is repaired by rerunning it. `EnrichmentSource` is `profilesEnrichmentSourceLayer`, which reads profiles' `SeasonProfiles`: before `enrich` ran for the season it returns empty enrichment (scoring pass 1, archive proxies only); afterwards real stars set repository standing and whether a repository counts, known mergers turn merged pull requests into self-merged, and locations fill the Poland board (scoring pass 2). Logins flagged as bots by enrichment are kept out of the season like `isBot` matches. `Candidates` (`ranking/application/candidates.service.ts`) is the read side of `candidates.json` for the `enrich` script.
+
+## Profiles
+
+`scripts/enrich.ts` reads the season's candidates through ranking's `Candidates` and hands them to `Enrich` (`profiles/application/enrich.service.ts`), so the module graph stays acyclic. `Enrich` runs over the `ProfileSource` port (`infrastructure/github-profile-source.ts` on the shared `GitHubGraphql`) and the `ProfileStore` port. For each kind (repositories, contributors, pull requests) it keeps fresh entries of the existing file (7 days; a known merger is never refetched), fetches the rest in queries of 100 aliases, one at a time, writes the file every 10 batches and at the end, and reports requested, cached, fetched, missing and failed counts with query cost. Not found (deleted, renamed, private, or an app account, since GraphQL `user` cannot see bots) is recorded as `missing`; any other error under an alias, nested ones included, leaves that item for the next run. The GraphQL adapter retries 5xx, network errors and rate limits with backoff, waits for `retry-after`, `x-ratelimit-reset` or 60 s (a 429, or a 403 about the secondary rate limit; a permission 403 is not retried), pauses until `resetAt` when fewer than 100 points remain, and keeps the token out of error messages. Other modules read the files through `SeasonProfiles`.
+
+Every `build-ranking` regenerates `candidates.json` from its own scoring, so contributors who become counted only in pass 2 have no profile or merger yet. The daily run is therefore `build-ranking → enrich → build-ranking`: pass 1 picks candidates, `enrich` fetches what is missing or stale (cached entries cost nothing), pass 2 scores with it; newcomers of pass 2 are enriched by the next day's run.
 
 ## Data files in Blob
 
-| Path                                  | Content                                                                                                                                                                                                         | Size      | Writer     |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------- |
-| `days/<YYYY-MM-DD>.json`              | Day totals; rows of author, repository, merged, self-merged, merged PR numbers; own-repo counts per author; stars and external merge authors per repository                                                     | a few MB  | `ingest`   |
-| `seasons/<YYYY-MM>/repos.json`        | Repository standing: contributors, stars in season, real stars, language                                                                                                                                        | a few MB  | `profiles` |
-| `seasons/<YYYY-MM>/profiles.json`     | Avatar, name, location, company for candidates                                                                                                                                                                  | a few MB  | `profiles` |
-| `seasons/<YYYY-MM>/candidates.json`   | Pass 1 candidates for enrichment: top contributors, their repositories, their merged pull request numbers                                                                                                       | a few MB  | `ranking`  |
-| `seasons/<YYYY-MM>/tabs/<board>.json` | Top 100 for a board: `global`, `poland` (contributors, with board rank, season percentile, top 3 repositories) and `repositories`; language boards later                                                        | < 100 KB  | `ranking`  |
-| `seasons/<YYYY-MM>/shards/<xx>.json`  | Rank, percentile, score, Poland rank and per-repository breakdown (with `counted`) of every contributor; bots and contributors without a counted repository kept as excluded; 256 shards by FNV-1a of the login | 50–100 KB | `ranking`  |
-| `seasons/index.json`                  | Seasons newest first: status, days included and missing, recompute time, footer stats                                                                                                                           | 1 KB      | `ranking`  |
+| Path                                  | Content                                                                                                                                                                                                         | Size       | Writer     |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------- |
+| `days/<YYYY-MM-DD>.json`              | Day totals; rows of author, repository, merged, self-merged, merged PR numbers; own-repo counts per author; stars and external merge authors per repository                                                     | a few MB   | `ingest`   |
+| `seasons/<YYYY-MM>/repos.json`        | Real stars and language of every repository of the season, keyed by `owner/name`, with fetch time and a `missing` flag                                                                                          | a few MB   | `profiles` |
+| `seasons/<YYYY-MM>/profiles.json`     | Name, location, company and avatar of candidate contributors, keyed by login, with fetch time and a `missing` flag                                                                                              | about 1 MB | `profiles` |
+| `seasons/<YYYY-MM>/mergers.json`      | Merger login (or `null` when unknown) of the candidates' merged pull requests, keyed by `owner/name#number`                                                                                                     | about 1 MB | `profiles` |
+| `seasons/<YYYY-MM>/candidates.json`   | Pass 1 candidates for enrichment: top contributors, their repositories, their merged pull request numbers                                                                                                       | a few MB   | `ranking`  |
+| `seasons/<YYYY-MM>/tabs/<board>.json` | Top 100 for a board: `global`, `poland` (contributors, with board rank, season percentile, top 3 repositories) and `repositories`; language boards later                                                        | < 100 KB   | `ranking`  |
+| `seasons/<YYYY-MM>/shards/<xx>.json`  | Rank, percentile, score, Poland rank and per-repository breakdown (with `counted`) of every contributor; bots and contributors without a counted repository kept as excluded; 256 shards by FNV-1a of the login | 50–100 KB  | `ranking`  |
+| `seasons/index.json`                  | Seasons newest first: status, days included and missing, recompute time, footer stats                                                                                                                           | 1 KB       | `ranking`  |
 
 Only the writer module decodes and encodes a file; readers go through its application service.
 
