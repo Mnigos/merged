@@ -64,14 +64,14 @@ File names are kebab-case with a role suffix where it helps: `*.service.ts` (app
 
 Dependencies point inwards: presentation → application → domain. Infrastructure implements application ports and depends on application and domain.
 
-| Layer            | May import                                                                              | Must not import                                                    |
-| ---------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `domain`         | own domain, `effect` data modules (`Schema`, `Option`, …), `@shared/schema`             | application, infrastructure, presentation, React, TanStack         |
-| `application`    | own domain, `effect`, `@shared/*`, other modules' application services and domain types | own infrastructure (it gets adapters through Layers), presentation |
-| `infrastructure` | own application ports and domain, `effect`, `@shared/*`                                 | presentation, other modules' internals                             |
-| `presentation`   | own application and domain, `@shared/*`, other modules' application services            | infrastructure (only `<module>.layer.ts` wires it)                 |
-| `src/shared`     | `effect`, external SDKs                                                                 | anything in `src/modules/`                                         |
-| `src/routes`     | module `presentation/`, `@shared/ui`                                                    | application, infrastructure, `effect`                              |
+| Layer            | May import                                                                                                                   | Must not import                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `domain`         | own domain, `effect` data modules (`Schema`, `Option`, …), `@shared/schema`, pure shared rules such as `@shared/github/bots` | application, infrastructure, presentation, React, TanStack         |
+| `application`    | own domain, `effect`, `@shared/*`, other modules' application services and domain types                                      | own infrastructure (it gets adapters through Layers), presentation |
+| `infrastructure` | own application ports and domain, `effect`, `@shared/*`                                                                      | presentation, other modules' internals                             |
+| `presentation`   | own application and domain, `@shared/*`, other modules' application services                                                 | infrastructure (only `<module>.layer.ts` wires it)                 |
+| `src/shared`     | `effect`, external SDKs                                                                                                      | anything in `src/modules/`                                         |
+| `src/routes`     | module `presentation/`, `@shared/ui`                                                                                         | application, infrastructure, `effect`                              |
 
 - Modules talk through application services only. Importing another module's `domain/` types is allowed so service signatures can be typed; reaching into its application internals, infrastructure, or presentation is not.
 - React components and hooks never import `effect`. They receive plain data from loaders or call server functions.
@@ -80,17 +80,17 @@ Dependencies point inwards: presentation → application → domain. Infrastruct
 
 ## Shared kernel
 
-| Path                  | Holds                                                                                                   |
-| --------------------- | ------------------------------------------------------------------------------------------------------- |
-| `src/shared/schema/`  | Schema helpers and shared branded types (GitHub login, season id, ISO date).                            |
-| `src/shared/storage/` | `BlobStorage` port (read and write JSON by path) and its Vercel Blob adapter.                           |
-| `src/shared/github/`  | `GitHubClient` port (batched GraphQL, retry, rate limiter) and its adapter; **Bot** rules in `bots.ts`. |
-| `src/shared/config/`  | Effect `Config` definitions for tokens and Blob credentials.                                            |
-| `src/shared/errors/`  | Cross-module tagged errors such as storage and decode failures.                                         |
-| `src/shared/ui/`      | Reusable, domain-free UI primitives.                                                                    |
-| `src/shared/utils/`   | Domain-agnostic utils with JSDoc.                                                                       |
+| Path                  | Holds                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/schema/`  | Schema helpers and shared branded types (GitHub login, season id, ISO date).                                                           |
+| `src/shared/storage/` | `JsonStorage` port (read and write text by POSIX-relative path), local-disk adapter, in-memory test adapter; Vercel Blob adapter next. |
+| `src/shared/github/`  | `GitHubClient` port (batched GraphQL, retry, rate limiter) and its adapter; **Bot** rules in `bots.ts`.                                |
+| `src/shared/config/`  | Effect `Config` definitions for tokens and Blob credentials.                                                                           |
+| `src/shared/errors/`  | Cross-module tagged errors such as storage and decode failures.                                                                        |
+| `src/shared/ui/`      | Reusable, domain-free UI primitives.                                                                                                   |
+| `src/shared/utils/`   | Domain-agnostic utils with JSDoc.                                                                                                      |
 
-Modules build typed stores on top of `BlobStorage` in their own `infrastructure/`: each store owns its paths and decodes its files with the module's Schema.
+Modules build typed stores on top of `JsonStorage` in their own `infrastructure/`: each store owns its paths and decodes its files with the module's Schema (`ingest` `json-day-store.ts`, `ranking` `json-season-store.ts`).
 
 ## Ingest
 
@@ -98,27 +98,32 @@ Modules build typed stores on top of `BlobStorage` in their own `infrastructure/
 
 GH Archive trimmed pull request payloads in 2025: a merge is now `action: "merged"` with the author as `actor`, and the merger is absent. The decoder reads that format and the older `closed` plus `merged: true` format; for trimmed events an unknown merger counts as merged by someone else, and the aggregate keeps those pull request numbers so pass 2 can resolve the merger for candidates. Logins and repository names are lowercased; own-repo merges get only a per-author count.
 
+## Ranking
+
+`scripts/build-ranking.ts` runs `BuildSeason` (`ranking/application/build-season.service.ts`) over ingest's `DailyAggregates` application service, the `EnrichmentSource` port, and the `SeasonStore` port; ranking reads days only through `DailyAggregates`, never through ingest's `DayStore` port. It reads every day of the season (missing days are skipped and recorded), sums them into a **Season** (each pull request once, bots and excluded repositories kept out of standing), scores it with `domain/scoring.ts`, and writes candidates, all 256 shards, boards, then `seasons/index.json` last, so a failure mid-run leaves boards and index on the previous build as far as possible. Builds run sequentially, one season at a time; a failed build is repaired by rerunning it. Scoring pass 1 uses `emptyEnrichmentSourceLayer` (archive proxies only); the profiles module will provide an enrichment adapter with real stars, locations, bot flags and mergers for the candidates.
+
 ## Data files in Blob
 
-| Path                                  | Content                                                                                                                                                     | Size      | Writer     |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------- |
-| `days/<YYYY-MM-DD>.json`              | Day totals; rows of author, repository, merged, self-merged, merged PR numbers; own-repo counts per author; stars and external merge authors per repository | a few MB  | `ingest`   |
-| `seasons/<YYYY-MM>/repos.json`        | Repository standing: contributors, stars in season, real stars, language                                                                                    | a few MB  | `profiles` |
-| `seasons/<YYYY-MM>/profiles.json`     | Avatar, name, location, company for candidates                                                                                                              | a few MB  | `profiles` |
-| `seasons/<YYYY-MM>/tabs/<board>.json` | Top 100 for a board: `global`, `poland`, `typescript`, `rust`, …                                                                                            | < 100 KB  | `ranking`  |
-| `seasons/<YYYY-MM>/shards/<xx>.json`  | Score, rank, percentile of every contributor; 256 shards by login hash                                                                                      | 50–100 KB | `ranking`  |
-| `seasons/index.json`                  | Season list, last recompute time, footer stats                                                                                                              | 1 KB      | `ranking`  |
+| Path                                  | Content                                                                                                                                                                                                         | Size      | Writer     |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------- |
+| `days/<YYYY-MM-DD>.json`              | Day totals; rows of author, repository, merged, self-merged, merged PR numbers; own-repo counts per author; stars and external merge authors per repository                                                     | a few MB  | `ingest`   |
+| `seasons/<YYYY-MM>/repos.json`        | Repository standing: contributors, stars in season, real stars, language                                                                                                                                        | a few MB  | `profiles` |
+| `seasons/<YYYY-MM>/profiles.json`     | Avatar, name, location, company for candidates                                                                                                                                                                  | a few MB  | `profiles` |
+| `seasons/<YYYY-MM>/candidates.json`   | Pass 1 candidates for enrichment: top contributors, their repositories, their merged pull request numbers                                                                                                       | a few MB  | `ranking`  |
+| `seasons/<YYYY-MM>/tabs/<board>.json` | Top 100 for a board: `global`, `poland` (contributors, with board rank, season percentile, top 3 repositories) and `repositories`; language boards later                                                        | < 100 KB  | `ranking`  |
+| `seasons/<YYYY-MM>/shards/<xx>.json`  | Rank, percentile, score, Poland rank and per-repository breakdown (with `counted`) of every contributor; bots and contributors without a counted repository kept as excluded; 256 shards by FNV-1a of the login | 50–100 KB | `ranking`  |
+| `seasons/index.json`                  | Seasons newest first: status, days included and missing, recompute time, footer stats                                                                                                                           | 1 KB      | `ranking`  |
 
 Only the writer module decodes and encodes a file; readers go through its application service.
 
 ## Decision records
 
-| ADR                                                                        | Decision                                                            |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| [0001](docs/decisions/0001-stack-and-no-database-architecture.md)          | TanStack Start + Effect 4, no database, no API server.              |
-| [0002](docs/decisions/0002-scoring-formula.md)                             | Scoring formula: merge weights, log10 popularity, 30% per-repo cap. |
-| [0003](docs/decisions/0003-modular-ddd-layout-in-one-package.md)           | Modular DDD layout in one package.                                  |
-| [0004](docs/decisions/0004-pipeline-on-github-actions-with-vercel-blob.md) | Pipeline on GitHub Actions, storage in Vercel Blob.                 |
+| ADR                                                                        | Decision                                                                                                                                      |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| [0001](docs/decisions/0001-stack-and-no-database-architecture.md)          | TanStack Start + Effect 4, no database, no API server.                                                                                        |
+| [0002](docs/decisions/0002-scoring-formula.md)                             | Scoring formula: merge weights, log10 popularity, diminishing returns per organisation (amended 2026-10-10, replaced the 30% cap), bot rules. |
+| [0003](docs/decisions/0003-modular-ddd-layout-in-one-package.md)           | Modular DDD layout in one package.                                                                                                            |
+| [0004](docs/decisions/0004-pipeline-on-github-actions-with-vercel-blob.md) | Pipeline on GitHub Actions, storage in Vercel Blob.                                                                                           |
 
 ## Related docs
 

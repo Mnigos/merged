@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-01",
+  "totals": { "merged": 5, "selfMerged": 0, "ownRepo": 3, "stars": 25 },
+  "contributions": [
+    {
+      "author": "carol",
+      "repository": "acme/gadgets",
+      "merged": 1,
+      "selfMerged": 0,
+      "mergedPullRequests": [10]
+    },
+    {
+      "author": "alice",
+      "repository": "acme/widgets",
+      "merged": 2,
+      "selfMerged": 0,
+      "mergedPullRequests": [1, 2]
+    },
+    {
+      "author": "bob",
+      "repository": "acme/widgets",
+      "merged": 1,
+      "selfMerged": 0,
+      "mergedPullRequests": [4]
+    },
+    {
+      "author": "alice",
+      "repository": "tiny/tool",
+      "merged": 1,
+      "selfMerged": 0,
+      "mergedPullRequests": [3]
+    }
+  ],
+  "ownRepoMerges": { "alice": 3 },
+  "repositories": [
+    { "repository": "acme/gadgets", "stars": 0, "mergeAuthors": 1 },
+    { "repository": "acme/widgets", "stars": 20, "mergeAuthors": 2 },
+    { "repository": "lonely/repo", "stars": 5, "mergeAuthors": 0 },
+    { "repository": "tiny/tool", "stars": 0, "mergeAuthors": 1 }
+  ]
+}

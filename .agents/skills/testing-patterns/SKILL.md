@@ -29,7 +29,7 @@ Prefer live specs over examples in this skill.
 - Do not assign a generic `const result` solely to assert it once; inline the expression. Keep a named value when it is reused or the name clarifies the test.
 - Do not use `.resolves` for successful async assertions. Use `expect(await promise)`; `.rejects` is allowed for expected async errors.
 - Use `toBeTruthy()` for truthiness; reserve `toBe(true)` for contracts that return a literal boolean.
-- When asserting behavior derived from exported constants (`PR_WEIGHT`, `CAP_PER_REPO`), import the constant instead of duplicating values.
+- When asserting behavior derived from exported constants (`PR_WEIGHT`, `POPULARITY_OFFSET`), import the constant instead of duplicating values.
 - When moving production files between layers or modules, move matching specs in the same change.
 - Spy names are the method plus `Spy`; set spies before calling the code under test.
 

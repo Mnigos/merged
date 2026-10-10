@@ -61,7 +61,8 @@
 
 <h2>Scoring</h2>
 <p>Zasada: liczy się tylko to, co ktoś inny musiał zaakceptować. Wszystkie stałe w jednym pliku, formuła opisana w README.</p>
-<pre><code>score(author) = Σ po repo  min( Σ pr_weight × log10(popularity + 10),  CAP_PER_REPO × total )
+<pre><code>repo_term     = Σ pr_weight × liczba PR × log10(popularity + 10)²
+score(author) = 100 × Σ po właścicielach  sqrt( Σ repo_term po repozytoriach właściciela )
 
 pr_weight        1.0  zwykły merge przez kogoś innego
                  0.5  self-merge (autor ma write access, czyli maintainer)
@@ -70,14 +71,19 @@ pr_weight        1.0  zwykły merge przez kogoś innego
 popularity       pass 1: liczba różnych autorów zmergowanych w sezonie + WatchEvents w sezonie
                  pass 2: realne gwiazdki z GraphQL dla repozytoriów kandydatów
 
-CAP_PER_REPO     0.3  jedno repo daje maks. 30% wyniku
+liczy się       repo liczy się, gdy w sezonie wkład dał lub gwiazdkę zostawił ktoś poza tobą, albo ma min. 10 gwiazdek;
+                 inaczej jego PR-y zostają w rozbiciu z wynikiem 0 (counted: false)
+
+sqrt             malejące zwroty per organizacja: pierwiastek liczony łącznie ze wszystkich repo jednego właściciela
+                 (100 PR w jednym repo liczy się jak 10, farma 207 małych repo jednej organizacji jak ~14 repo);
+                 zastąpiło CAP_PER_REPO 0.3, zob. ADR 0002, poprawka z 2026-10-10
+SCORE_SCALE      100  jeden PR do nieznanego repo ≈ 100 pkt, do repo ze 100k gwiazdek ≈ 500; wynik całkowity
 MIN_POPULARITY   repo z 1 kontrybutorem i 0 gwiazdek waży ~1 punkt, więc farmy nie mają znaczenia</code></pre>
 
 <h3>Wykluczenia</h3>
 <ul>
-  <li>Loginy kończące się na <code>[bot]</code> oraz lista znanych botów: dependabot, renovate, github-actions, snyk, imgbot, allcontributors.</li>
+  <li>Boty: sufiks <code>[bot]</code>, wzorce loginów (<code>-bot</code>, <code>_bot</code>, <code>robot</code>, <code>svc-</code>, <code>copilot</code>, prefiksy automatyzacji jak <code>ci</code>/<code>release</code> + <code>bot</code>) oraz lista znanych botów; szczegóły w <code>src/shared/github/bots.ts</code>.</li>
   <li>PR‑y do repozytoriów, których właścicielem jest autor.</li>
-  <li>Konta z więcej niż 95% PR‑ów w jednym repo nie trafiają do zakładki globalnej, ale widać ich wynik w wyszukiwarce.</li>
 </ul>
 
 <h2>Architektura</h2>
@@ -134,7 +140,7 @@ MIN_POPULARITY   repo z 1 kontrybutorem i 0 gwiazdek waży ~1 punkt, więc farmy
   <li>Scaffold: Bun, TanStack Start, Tailwind 4, TypeScript 7, oxlint, oxfmt, Vitest, Effect 4 RC <span class="tag">1 h</span></li>
   <li><b>Spike:</b> jedna godzina GH Archive przez Stream, pomiar czasu i pamięci. Jeśli Bun nie wyrabia, DuckDB po HTTPS <span class="tag">1 h</span></li>
   <li>Schema eventów, agregacja dnia, zapis do Blob, <code>ingest-day</code> działa dla wczoraj <span class="tag">2 h</span></li>
-  <li>Scoring pass 1 i testy formuły, w tym przypadki: bot, własne repo, self-merge, cap 30% <span class="tag">1,5 h</span></li>
+  <li>Scoring pass 1 i testy formuły, w tym przypadki: bot, własne repo, self-merge, malejące zwroty (sqrt) per organizacja <span class="tag">1,5 h</span></li>
   <li>GitHubClient z batchowanym GraphQL, retry, limiter; <code>enrich</code> dla repo i profili <span class="tag">2 h</span></li>
   <li><code>build-ranking</code>: zakładki, percentyle, shardy, index <span class="tag">1 h</span></li>
   <li>Backfill bieżącego sezonu lokalnie w pętli po dniach, odpalony na noc <span class="tag">15 min</span></li>
@@ -156,7 +162,7 @@ MIN_POPULARITY   repo z 1 kontrybutorem i 0 gwiazdek waży ~1 punkt, więc farmy
   <tr><th>Ryzyko</th><th>Plan</th></tr>
   <tr><td>Pliki GH Archive są duże i ingest dnia trwa ponad 30 min</td><td>Filtr po prefiksie linii przed JSON.parse. Matrix 4 jobów po 6 godzin w Action. Ostatecznie DuckDB.</td></tr>
   <tr><td>Za dużo repozytoriów do wzbogacenia</td><td>Dwa przebiegi scoringu. Gwiazdki tylko dla repo kandydatów, reszta na proxy z archiwum.</td></tr>
-  <tr><td>Top 100 nadal pełne botów lub farm</td><td>Lista wykluczeń ręczna, próg 95% w jednym repo, podniesienie wagi liczby różnych autorów w popularności.</td></tr>
+  <tr><td>Top 100 nadal pełne botów lub farm</td><td>Reguły botów (wzorce loginów + lista), sqrt per organizacja, podniesienie wagi liczby różnych autorów w popularności.</td></tr>
   <tr><td>Effect 4 RC zmienia API</td><td>Pinowana wersja jak w Linkshelf, Effect odizolowany do <code>scripts/</code> i <code>src/server/</code>.</td></tr>
   <tr><td>Lokalizacja to wolny tekst</td><td>Zakładka Polska na liście aliasów: Poland, Polska, PL plus 30 największych miast. Reszta krajów w v2.</td></tr>
 </table>
