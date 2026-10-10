@@ -22,9 +22,9 @@ export const SiteFooter = ({ season }: Readonly<SiteFooterProps>) => (
 					</span>
 				)}
 				<span>
-					Data from{' '}
-					<a className={FOOTER_LINK} href="https://www.gharchive.org">
-						GH Archive
+					GH Archive data via the{' '}
+					<a className={FOOTER_LINK} href="https://gharchive.open-digger.cn">
+						OpenDigger mirror
 					</a>
 				</span>
 				<Link className={FOOTER_LINK} to="/methodology">

@@ -52,9 +52,17 @@ export const MethodologyArticle = () => (
 					>
 						GH Archive
 					</a>
-					, one file per hour. Once a day at 06:00 UTC merged reads the previous
-					day’s 24 files, keeps merged pull requests and stars, and recomputes
-					the season. Nothing is read from private repositories.
+					, one file per hour. The official GH Archive feed has lost most events
+					since 2026, so merged counts come from{' '}
+					<a
+						className="text-fg underline decoration-line-2 hover:decoration-fg-2"
+						href="https://gharchive.open-digger.cn"
+					>
+						OpenDigger’s archive
+					</a>{' '}
+					of the same public events. Once a day at 06:00 UTC merged reads the
+					previous day’s 24 files, keeps merged pull requests and stars, and
+					recomputes the season. Nothing is read from private repositories.
 				</p>
 			</Section>
 

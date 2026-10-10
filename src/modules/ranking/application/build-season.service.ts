@@ -9,7 +9,12 @@ import {
 	selectCandidates,
 } from '../domain/candidates'
 import { scoreSeason } from '../domain/score-season'
-import { assembleSeason } from '../domain/season'
+import {
+	addDay,
+	createSeasonAccumulator,
+	finishSeason,
+	type SeasonAccumulator,
+} from '../domain/season'
 import { toSeasonIndexEntry, upsertSeasonIndex } from '../domain/season-index'
 import { buildShards } from '../domain/shards'
 import {
@@ -21,11 +26,8 @@ import { EnrichmentSource } from './enrichment-source.port'
 import type { SeasonStoreError } from './season-store.error'
 import { SeasonStore } from './season-store.port'
 
-/** Daily aggregates read at the same time. */
-export const DAY_READ_CONCURRENCY = 8
-
 /** Shard files written at the same time. */
-export const SHARD_WRITE_CONCURRENCY = 16
+export const SHARD_WRITE_CONCURRENCY = 8
 
 export interface BuildSeasonOptions {
 	/** Contributors selected as candidates for enrichment. */
@@ -43,8 +45,9 @@ export interface BuildSeasonShape {
 }
 
 /**
- * Scores a season from its daily aggregates and writes every file the website
- * reads in this order: candidates, all 256 shards, boards, and the season index
+ * Scores a season from its daily aggregates, read one at a time in date order
+ * and folded into the season so only one day is in memory, and writes every file the website
+ * reads in this order: candidates, all 1024 shards, boards, and the season index
  * last, so a failure mid-run leaves boards and index on the previous build as
  * far as possible. Builds run one at a time; a failed build is repaired by
  * rerunning it.
@@ -60,18 +63,15 @@ export class BuildSeason extends Context.Service<
 			const enrichmentSource = yield* EnrichmentSource
 			const store = yield* SeasonStore
 
-			const readDays = Effect.fn('BuildSeason.readDays')(function* (
-				seasonId: SeasonId
+			const addDays = Effect.fn('BuildSeason.addDays')(function* (
+				accumulator: SeasonAccumulator
 			) {
-				const days = yield* Effect.forEach(
-					daysInSeason(seasonId),
-					date => dailyAggregates.read(date),
-					{
-						concurrency: DAY_READ_CONCURRENCY,
-					}
-				)
+				for (const date of daysInSeason(accumulator.seasonId)) {
+					const day = yield* dailyAggregates.read(date)
+					if (Option.isSome(day)) addDay(accumulator, day.value)
+				}
 
-				return days.flatMap(day => Option.toArray(day))
+				return finishSeason(accumulator)
 			})
 
 			const run = Effect.fn('BuildSeason.run')(function* (
@@ -85,13 +85,14 @@ export class BuildSeason extends Context.Service<
 						const now = new Date(yield* Clock.currentTimeMillis)
 						const computedAt = now.toISOString()
 						const enrichment = yield* enrichmentSource.read(seasonId)
-						const season = assembleSeason({
-							seasonId,
-							days: yield* readDays(seasonId),
-							isBotLogin: login =>
-								isBot(login) ||
-								enrichment.contributors.get(login)?.isBot === true,
-						})
+						const season = yield* addDays(
+							createSeasonAccumulator({
+								seasonId,
+								isBotLogin: login =>
+									isBot(login) ||
+									enrichment.contributors.get(login)?.isBot === true,
+							})
+						)
 						const scored = scoreSeason(season, enrichment)
 						const candidates = selectCandidates(
 							{ season, scored },
