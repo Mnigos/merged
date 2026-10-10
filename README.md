@@ -47,6 +47,21 @@ bun run build
 bun run scripts/smoke.ts   # proves Effect runs under Bun
 ```
 
+## Pipeline
+
+GitHub Actions run the data pipeline and store every file as public JSON in Vercel Blob; the website reads the same files by URL. `.github/workflows/pipeline.yml` runs `scripts/pipeline.ts` daily at 06:00 UTC: in one process it ingests yesterday from GH Archive, scores the season, enriches candidates through GitHub GraphQL, and scores again. `.github/workflows/backfill.yml` runs the same script over a date range on demand. Both can be started from the Actions tab. Commands, flags and local runs are in [scripts/README.md](scripts/README.md); the reasoning is in [ADR 0004](docs/decisions/0004-pipeline-on-github-actions-with-vercel-blob.md).
+
+```sh
+GITHUB_TOKEN="$(gh auth token)" bun run scripts/pipeline.ts --date 2026-10-03   # local disk under data/
+```
+
+| Where                   | Name                    | Value                                                                                                                                     |
+| ----------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub Actions secret   | `BLOB_READ_WRITE_TOKEN` | Read-write token of the Vercel Blob store.                                                                                                |
+| GitHub Actions variable | `BLOB_BASE_URL`         | Public store URL, such as `https://xxxx.public.blob.vercel-storage.com`, no trailing slash.                                               |
+| GitHub Actions secret   | `GH_PAT` (optional)     | Classic PAT with `public_repo` or no scopes for the 5,000-point GraphQL budget; without it `enrich` uses the rate-limited workflow token. |
+| Vercel environment      | `BLOB_BASE_URL`         | Same store URL; the website only reads, so it needs no Blob token.                                                                        |
+
 ## Impeccable
 
 [Impeccable](https://github.com/pbakaus/impeccable) is installed in the project (`.claude/skills/impeccable`, `.agents/skills/impeccable`). `PRODUCT.md` is its product context.

@@ -78,6 +78,8 @@ describe('ghArchiveHttpSourceLayer', () => {
 				date: '2026-10-03',
 				hour: 3,
 			})
+			expect(error.message).toContain('2026-10-03 hour 3')
+			expect(error.message).toContain('not complete in the archive yet')
 			expect(requests).toEqual([toArchiveHourUrl(date, 3)])
 		}).pipe(Effect.provide(layer))
 	})
@@ -131,6 +133,7 @@ describe('ghArchiveHttpSourceLayer', () => {
 				date,
 				hour: 0,
 			})
+			expect(error.message).not.toContain('not complete')
 			expect(requests).toHaveLength(REQUEST_RETRIES + 1)
 		}).pipe(Effect.provide(layer))
 	})

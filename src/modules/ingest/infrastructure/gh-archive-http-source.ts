@@ -1,6 +1,6 @@
 import type { IsoDate } from '@shared/schema/iso-date'
 import { Effect, Layer, Schedule, Stream } from 'effect'
-import { HttpClient, HttpClientResponse } from 'effect/http'
+import { HttpClient, HttpClientError, HttpClientResponse } from 'effect/http'
 import { ArchiveSourceError } from '../application/archive-source.error'
 import { ArchiveSource } from '../application/archive-source.port'
 
@@ -17,10 +17,22 @@ export const toArchiveHourUrl = (date: IsoDate, hour: number) =>
 const toMessage = (cause: unknown) =>
 	cause instanceof Error ? cause.message : String(cause)
 
+const isNotFound = (cause: unknown) =>
+	HttpClientError.isHttpClientError(cause) &&
+	cause.reason._tag === 'StatusCodeError' &&
+	cause.reason.response.status === 404
+
+/** Message of a failed hour; a 404 means GH Archive has not published it yet. */
+const getHourErrorMessage = (date: IsoDate, hour: number, cause: unknown) =>
+	isNotFound(cause)
+		? `GH Archive ${date} hour ${hour} is not published yet (404): the day is not complete in the archive yet`
+		: `GH Archive ${date} hour ${hour}: ${toMessage(cause)}`
+
 /**
  * Streams GH Archive hours over HTTP: the request is retried with exponential
  * backoff, the body is gunzipped as it arrives and split into lines, so an hour
- * is never held in memory. Failures after the body started are not retried.
+ * is never held in memory. Failures after the body started are not retried; a
+ * 404 fails the hour with a message that the day is not complete yet.
  */
 export const ghArchiveHttpSourceLayer = Layer.effect(
 	ArchiveSource,
@@ -39,7 +51,7 @@ export const ghArchiveHttpSourceLayer = Layer.effect(
 				new ArchiveSourceError({
 					date,
 					hour,
-					message: `GH Archive ${date} hour ${hour}: ${toMessage(cause)}`,
+					message: getHourErrorMessage(date, hour, cause),
 				})
 
 			const compressed = HttpClientResponse.stream(
