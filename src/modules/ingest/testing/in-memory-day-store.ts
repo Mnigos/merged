@@ -1,23 +1,8 @@
-import type { IsoDate } from '@shared/schema/iso-date'
-import { Effect, Layer, Option } from 'effect'
-import { DayStore } from '../application/day-store.port'
-import type { DailyAggregate } from '../domain/daily-aggregate'
+import { inMemoryJsonStorageLayer } from '@shared/storage/in-memory-json-storage'
+import { Layer } from 'effect'
+import { jsonDayStoreLayer } from '../infrastructure/json-day-store'
 
-/** Test `DayStore` that keeps daily aggregates in a map for the layer's lifetime. */
-export const inMemoryDayStoreLayer = Layer.sync(DayStore, () => {
-	const days = new Map<IsoDate, DailyAggregate>()
-
-	return {
-		write: (aggregate: DailyAggregate) =>
-			Effect.sync(() => {
-				days.set(aggregate.date, aggregate)
-
-				return {
-					location: `memory://days/${aggregate.date}.json`,
-					bytes: JSON.stringify(aggregate).length,
-				}
-			}),
-		read: (date: IsoDate) =>
-			Effect.sync(() => Option.fromNullishOr(days.get(date))),
-	}
-})
+/** Test `DayStore`: the JSON day store over a fresh in-memory storage. */
+export const inMemoryDayStoreLayer = jsonDayStoreLayer.pipe(
+	Layer.provide(inMemoryJsonStorageLayer())
+)
