@@ -65,12 +65,11 @@ export const LookupForm = ({
 			onSubmit={handleSubmit}
 			role="search"
 		>
-			<label
+			<div
 				className={cn(
 					'flex h-12 items-center gap-2.5 rounded-xl border bg-bg-2 pr-1.5 pl-3.5 shadow-field transition-[border-color,box-shadow] duration-150 focus-within:border-merged-line focus-within:shadow-[0_0_0_3px_var(--color-merged-soft)]',
 					error ? 'border-down/60' : 'border-line-2'
 				)}
-				htmlFor={LOOKUP_INPUT_ID}
 			>
 				<SearchIcon className="size-4 shrink-0 text-fg-3" />
 				<input
@@ -94,7 +93,7 @@ export const LookupForm = ({
 				<Button aria-busy={isNavigating || undefined} type="submit">
 					{isNavigating ? 'Checking' : 'Check'}
 				</Button>
-			</label>
+			</div>
 			<p
 				aria-live="polite"
 				className={cn(
