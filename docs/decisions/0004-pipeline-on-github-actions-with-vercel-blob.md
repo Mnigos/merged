@@ -25,6 +25,7 @@ A day of GH Archive is 24 gzipped hourly files. The leaderboard needs one recomp
 ## Notes
 
 - **2026-10-05, measured:** a full day (2026-10-03) is 528 MB gzipped and 1.95 M lines; the substring pre-filter drops 94.5% before parsing. `ingest-day` with four hours in parallel took 6–10 s wall with 311–533 MB peak RSS on a laptop, bound by download speed. The planned split into four 6-hour jobs and the DuckDB fallback are not needed.
+- **2026-10-10, enrichment measured:** `enrich` fetches real stars for every repository of the season, not the top 50,000 profiles: whether a repository counts depends on real stars (ADR 0002 amendment). Contributor profiles and mergers are fetched for the top 3,000 candidates and their merged pull requests. Results are cached per season in `repos.json`, `profiles.json` and `mergers.json` and refetched after 7 days (a known merger never). On 2026-10-01..04 the first run took 262 queries of 100 aliases for 262 points (18,872 repositories, 2,660 contributors, 4,511 pull requests) in 18 minutes; a second run after pass 2 needed 54 queries for the new candidates. There is no points-per-minute limiter: queries run one at a time, and GitHub's secondary rate limit (403 with `retry-after: 60`) hit about every 50 queries and is waited out by the adapter, which also pauses when fewer than 100 points remain.
 
 ## Related
 

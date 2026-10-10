@@ -63,6 +63,9 @@ describe('isBot', () => {
 		'ci-runner',
 		'r-ryantm',
 		'JuliaRegistrator',
+		'webkit-commit-queue',
+		'acme-merge-queue',
+		'deploy_queue',
 	])('excludes %j as a bot', login => {
 		expect(isBot(login)).toBe(true)
 	})
@@ -86,6 +89,10 @@ describe('isBot', () => {
 		'luci',
 		'marci',
 		'cici',
+		'queue-dev',
+		'myqueue',
+		'queuemaster',
+		'jqueue-fan',
 	])('keeps %j human', login => {
 		expect(isBot(login)).toBe(false)
 	})
