@@ -1,7 +1,14 @@
 import { describe, expect, it } from '@effect/vitest'
-import { login, toSeason } from '../testing/season.mock'
+import {
+	login,
+	seasonId,
+	toDay,
+	toEnrichment,
+	toSeason,
+} from '../testing/season.mock'
 import { emptyEnrichment } from './enrichment'
 import { scoreSeason } from './score-season'
+import { assembleSeason } from './season'
 
 describe('assembleSeason', () => {
 	const season = toSeason(
@@ -125,6 +132,41 @@ describe('assembleSeason', () => {
 			mergedPullRequests: 1,
 		})
 		expect(withBot.totals.merged).toBe(1)
+	})
+
+	it('keeps logins flagged by the bot predicate apart, so they do not make a lone repository count', () => {
+		const days = [
+			toDay({
+				date: '2026-10-01',
+				rows: [
+					{ author: 'alice', repository: 'solo/tool', pullRequests: [1] },
+					{ author: 'robo', repository: 'solo/tool', pullRequests: [2] },
+				],
+			}),
+		]
+		const enrichment = toEnrichment({ contributors: { robo: { isBot: true } } })
+		const flagged = assembleSeason({
+			seasonId,
+			days,
+			isBotLogin: author => enrichment.contributors.get(author)?.isBot === true,
+		})
+
+		expect([...flagged.contributors.keys()]).toEqual(['alice'])
+		expect([...flagged.bots.keys()]).toEqual(['robo'])
+		expect(flagged.repositories.get('solo/tool')).toMatchObject({
+			contributors: 1,
+			mergedPullRequests: 1,
+		})
+		expect(flagged.totals.merged).toBe(1)
+		expect(scoreSeason(flagged, enrichment).excluded).toMatchObject([
+			{ login: 'alice', exclusion: 'noCountedRepository' },
+			{ login: 'robo', exclusion: 'bot' },
+		])
+		expect(
+			scoreSeason(assembleSeason({ seasonId, days }), enrichment).ranked.map(
+				contributor => contributor.login
+			)
+		).toEqual(['alice'])
 	})
 
 	it('drops rows of excluded repositories from contributors and totals', () => {

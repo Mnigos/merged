@@ -96,7 +96,7 @@ describe('BuildSeason', () => {
 				contributors: 4,
 				excludedBots: 1,
 				repositories: 3,
-				mergedPullRequests: 10,
+				mergedPullRequests: 8,
 				candidates: { contributors: 4, repositories: 3, pullRequests: 8 },
 				filesWritten: 1 + 3 + SHARD_COUNT + 1,
 			})
@@ -149,7 +149,7 @@ describe('BuildSeason', () => {
 							computedAt: '2026-10-04T06:00:00.000Z',
 							contributors: 4,
 							repositories: 3,
-							mergedPullRequests: 10,
+							mergedPullRequests: 8,
 						},
 						previousSeason,
 					],
@@ -238,8 +238,8 @@ describe('BuildSeason', () => {
 				).toEqual({
 					rank: 1,
 					repository: 'acme/widgets',
-					contributors: 4,
-					mergedPullRequests: 7,
+					contributors: 3,
+					mergedPullRequests: 5,
 					starsInSeason: 20,
 					stars: 1200,
 					language: 'Go',
@@ -371,4 +371,66 @@ describe('BuildSeason', () => {
 			)
 		}).pipe(Effect.provide(buildLayer(files, enrichment)))
 	})
+
+	it.effect(
+		'excludes an enrichment-only bot before counting repository contributors',
+		() => {
+			const files = new Map([
+				[
+					'days/2026-10-01.json',
+					JSON.stringify(
+						toDay({
+							date: '2026-10-01',
+							rows: [
+								{ author: 'alice', repository: 'solo/tool', pullRequests: [1] },
+								{ author: 'robo', repository: 'solo/tool', pullRequests: [2] },
+							],
+						})
+					),
+				],
+			])
+
+			return Effect.gen(function* () {
+				yield* TestClock.setTime(NOW)
+				const report = yield* (yield* BuildSeason).run(seasonId)
+				const store = yield* SeasonStore
+				expect(report).toMatchObject({
+					contributors: 0,
+					excludedBots: 1,
+					withoutCountedRepository: 1,
+					mergedPullRequests: 1,
+				})
+				expect(
+					Option.getOrThrow(yield* store.readBoard(seasonId, 'global')).rows
+				).toEqual([])
+				expect(
+					Option.getOrThrow(yield* store.readBoard(seasonId, 'poland')).rows
+				).toEqual([])
+				expect(
+					Option.getOrThrow(yield* store.readRepositoryBoard(seasonId)).rows
+				).toMatchObject([
+					{ repository: 'solo/tool', contributors: 1, mergedPullRequests: 1 },
+				])
+				expect(
+					Option.getOrThrow(
+						yield* store.readShard(seasonId, shardKeyOf('robo'))
+					).entries['robo']
+				).toMatchObject({ excluded: 'bot', rank: null })
+				expect(
+					Option.getOrThrow(
+						yield* store.readShard(seasonId, shardKeyOf('alice'))
+					).entries['alice']
+				).toMatchObject({ excluded: 'noCountedRepository', rank: null })
+			}).pipe(
+				Effect.provide(
+					buildLayer(
+						files,
+						toEnrichment({
+							contributors: { robo: { isBot: true, location: 'Warsaw' } },
+						})
+					)
+				)
+			)
+		}
+	)
 })

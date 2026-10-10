@@ -1,5 +1,6 @@
 import { DailyAggregates } from '@modules/ingest/application/daily-aggregates.service'
 import type { DayStoreError } from '@modules/ingest/application/day-store.error'
+import { isBot } from '@shared/github/bots'
 import { daysInSeason, type SeasonId } from '@shared/schema/season-id'
 import { Clock, Context, Duration, Effect, Layer, Option } from 'effect'
 import { buildBoards } from '../domain/boards'
@@ -83,11 +84,14 @@ export class BuildSeason extends Context.Service<
 					Effect.gen(function* () {
 						const now = new Date(yield* Clock.currentTimeMillis)
 						const computedAt = now.toISOString()
+						const enrichment = yield* enrichmentSource.read(seasonId)
 						const season = assembleSeason({
 							seasonId,
 							days: yield* readDays(seasonId),
+							isBotLogin: login =>
+								isBot(login) ||
+								enrichment.contributors.get(login)?.isBot === true,
 						})
-						const enrichment = yield* enrichmentSource.read(seasonId)
 						const scored = scoreSeason(season, enrichment)
 						const candidates = selectCandidates(
 							{ season, scored },
