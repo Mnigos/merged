@@ -18,7 +18,7 @@ Secondary (inferred): developers browsing the top 100 out of curiosity; people w
 
 ## Product Purpose
 
-A monthly leaderboard of open-source contributors computed only from pull requests that someone else merged into repositories the author does not own, weighted by project popularity, with a per-repository cap. It exists because contribution-count leaderboards (committers.top, top-github-users, Rang Forge) are dominated by bot-like accounts, and cumulative rankings favor decade-long veterans. Success: visitors check their rank, share the card on X, and come back next month; the repository earns stars and the author earns recognition.
+A monthly leaderboard of open-source contributors computed only from pull requests that someone else merged into repositories the author does not own, weighted by project popularity, with diminishing returns per organisation: the square root is taken over all of an owner's repositories together. A repository counts once someone besides you contributed to it or starred it this season, or it has at least 10 stars. It exists because contribution-count leaderboards (committers.top, top-github-users, Rang Forge) are dominated by bot-like accounts, and cumulative rankings favor decade-long veterans. Success: visitors check their rank, share the card on X, and come back next month; the repository earns stars and the author earns recognition.
 
 ## Positioning
 
