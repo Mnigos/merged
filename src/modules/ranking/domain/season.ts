@@ -49,7 +49,7 @@ export interface Season {
 	readonly daysIncluded: readonly IsoDate[]
 	readonly contributors: ReadonlyMap<GitHubLogin, SeasonContributor>
 	/**
-	 * Logins matching the shared bot rules. They do not count as repository
+	 * Logins the bot predicate matches (`isBot` by default). They do not count as repository
 	 * contributors, towards standing or totals; they are kept so lookup can
 	 * explain the exclusion.
 	 */
@@ -124,6 +124,8 @@ const toSeasonContributors = (
 interface AssembleSeasonInput {
 	readonly seasonId: SeasonId
 	readonly days: readonly DailyAggregate[]
+	/** Which lowercase logins are bots; the shared `isBot` rules by default, plus enrichment flags in `BuildSeason`. */
+	readonly isBotLogin?: (login: GitHubLogin) => boolean
 }
 
 /**
@@ -138,6 +140,7 @@ interface AssembleSeasonInput {
 export function assembleSeason({
 	seasonId,
 	days,
+	isBotLogin = isBot,
 }: AssembleSeasonInput): Season {
 	const contributions: ContributionTallies = new Map()
 	const bots: ContributionTallies = new Map()
@@ -161,7 +164,7 @@ export function assembleSeason({
 			const merged = Math.max(0, row.merged - repeated)
 			if (merged + row.selfMerged === 0) continue
 
-			const bot = isBot(author)
+			const bot = isBotLogin(author)
 			const tally = getOrInsert(
 				getOrInsert(
 					bot ? bots : contributions,

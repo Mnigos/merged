@@ -34,6 +34,7 @@ export const BOT_LOGINS: ReadonlySet<string> = new Set([
 	'vercel',
 	'r-ryantm',
 	'juliaregistrator',
+	'webkit-commit-queue',
 ])
 
 /** Automation words a `…bot` login may start with, such as `releasebot` or `ci-helperbot`. */
@@ -60,6 +61,7 @@ export const BOT_LOGIN_PREFIXES = [
 
 const SEPARATED_BOT_SUFFIX = /[-_.]bot$/u
 const SEPARATED_CI_SUFFIX = /[-_]ci$/u
+const SEPARATED_QUEUE_SUFFIX = /[-_.]queue$/u
 const DIGIT_BOT_SUFFIX = /\dbot$/u
 const LOGIN_TOKEN_SEPARATOR = /[-_.]/u
 
@@ -67,7 +69,8 @@ function hasBotPattern(login: string) {
 	if (login.endsWith(BOT_SUFFIX) || login.endsWith('robot')) return true
 	if (SEPARATED_BOT_SUFFIX.test(login) || DIGIT_BOT_SUFFIX.test(login))
 		return true
-	if (SEPARATED_CI_SUFFIX.test(login)) return true
+	if (SEPARATED_CI_SUFFIX.test(login) || SEPARATED_QUEUE_SUFFIX.test(login))
+		return true
 	if (['svc-', 'bot-', 'ci-'].some(prefix => login.startsWith(prefix)))
 		return true
 	if (login.split(LOGIN_TOKEN_SEPARATOR).includes('copilot')) return true
@@ -84,12 +87,14 @@ function hasBotPattern(login: string) {
  * - ending in `-bot`, `_bot`, `.bot` or `robot`, or in `bot` right after a digit;
  * - ending in `bot` and starting with an automation word (`BOT_LOGIN_PREFIXES`);
  * - ending in `-ci` or `_ci`;
+ * - ending in `-queue`, `_queue` or `.queue`, such as merge queues (`webkit-commit-queue`);
  * - starting with `svc-`, `bot-` or `ci-`;
  * - `copilot` as a token between `-`, `_` or `.` (`copilot-swe-agent`);
  * - a known bot login (`BOT_LOGINS`).
  *
  * A bare `bot` ending after letters stays human, so surnames such as `talbot`,
- * `abbot` or `cabot` are not excluded.
+ * `abbot` or `cabot` are not excluded; so does `queue` anywhere but a
+ * separated ending (`queue-dev`, `myqueue`).
  */
 export function isBot(login: string) {
 	const normalized = login.toLowerCase()
