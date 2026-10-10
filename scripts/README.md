@@ -85,7 +85,7 @@ bun run scripts/build-ranking.ts --season 2026-10 --storage blob
 | `--data`    | `data`             | Data root; reads `<data>/days/*.json`, writes `<data>/seasons/…`. |
 | `--storage` | `local`            | `local` or `blob`, see Storage.                                   |
 
-It reads every day of the season that exists (missing days are skipped and listed), scores the season, and writes `seasons/<season>/candidates.json`, `tabs/global.json`, `tabs/poland.json`, `tabs/repositories.json`, all 1024 `shards/<xx>.json`, then updates `seasons/index.json`, keeping other seasons. It prints the top 10 and a summary (days, contributors, excluded bots, repositories, candidates, bytes written, wall time) and exits non-zero when a day file is corrupt or a write fails. Without enrichment (before `enrich` ran for the season) the Poland board is empty and every merge counts as merged by someone else; afterwards it reads `repos.json`, `profiles.json` and `mergers.json` and scores pass 2.
+It reads every day of the season that exists (missing days are skipped and listed), scores the season, and writes `seasons/<season>/candidates.json`, `tabs/global.json`, `tabs/poland.json`, `tabs/repositories.json`, all 1024 `shards/<xxx>.json`, then updates `seasons/index.json`, keeping other seasons. It prints the top 10 and a summary (days, contributors, excluded bots, repositories, candidates, bytes written, wall time) and exits non-zero when a day file is corrupt or a write fails. Without enrichment (before `enrich` ran for the season) the Poland board is empty and every merge counts as merged by someone else; afterwards it reads `repos.json`, `profiles.json` and `mergers.json` and scores pass 2.
 
 ## enrich
 
