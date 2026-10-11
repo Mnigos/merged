@@ -5,6 +5,7 @@ Data pipeline run by GitHub Actions (daily cron at 06:00 UTC) with Bun and Effec
 | Command                          | Modules               | Does                                                                                                                                                                                                                                         |
 | -------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ingest-day --date YYYY-MM-DD`   | `ingest`              | Streams the day's 24 GH Archive files from the OpenDigger mirror, keeps only `PullRequestEvent` and `WatchEvent` lines before parsing, decodes and aggregates them, writes `days/<date>.json` to local disk, GitHub Releases or Vercel Blob. |
+| `merge-day --date YYYY-MM-DD`    | `ingest`              | Reads the day parts `ingest-day --part` wrote on parallel runners, checks they cover hours 0–23 once, merges them into the daily aggregate and writes `days/<date>.json` to the chosen storage.                                              |
 | `enrich --season YYYY-MM`        | `ranking`, `profiles` | Reads the candidates `build-ranking` picked in scoring pass 1; `profiles` fetches real stars, contributor profiles and pull request mergers through batched GitHub GraphQL with retry and rate limit waits, caches them in season files.     |
 | `pipeline`                       | all                   | The daily job in one process: ingest, then `build-ranking → enrich → build-ranking`, over a write-through cache so each step reads what the previous one wrote. Used by both workflows.                                                      |
 | `build-ranking --season YYYY-MM` | `ranking`             | Sums the season's daily aggregates, scores them (pass 1 now, pass 2 once enrichment exists), writes candidates, boards, percentiles, shards and `seasons/index.json`. Scoring rules live in `src/modules/ranking/domain/`.                   |
@@ -31,7 +32,20 @@ Every script takes `--storage local|github|blob` (default `local`). `local` read
 
 ## GitHub Actions
 
-`.github/workflows/pipeline.yml` runs daily at 06:00 UTC and on manual dispatch (optional `date` and `season`) one step: `bun run scripts/pipeline.ts --storage github`. `.github/workflows/backfill.yml` is manual and runs `pipeline.ts --storage github --from <from> --date <to>` (plus `--season` when set). A day takes 5–10 minutes on the OpenDigger mirror (about 9.5 GB), so keep a backfill range under about 20 days per run; the job times out after 6 hours, the daily `pipeline.yml` after 90 minutes. Both share the `pipeline` concurrency group and never run at the same time. Both have `permissions: contents: write` and set `DATA_REPOSITORY: ${{ github.repository }}` and `GITHUB_TOKEN` to the `GH_PAT` secret when present, else the workflow token; an ordinary daily run makes about 424 content-creating REST requests (see ADR 0005); a classic `GH_PAT` with `public_repo` is recommended for the first of a month (about 850) and backfills.
+The OpenDigger mirror serves each client IP at about 0.5 MB/s, whatever the number of connections, so one runner needs about 4.5 hours for a day (about 8 GB). Each Actions job gets its own IP, so both workflows ingest a day as four day parts in parallel and publish in a second stage:
+
+```
+prepare   the day (pipeline.yml: input or yesterday) or the days (backfill.yml: from..to, at most 20)
+ingest    matrix date × part 0-5, 6-11, 12-17, 18-23; max-parallel 20, fail-fast off, 150 min, contents: read
+          ingest-day --date <d> --hours <part> --part --out data --storage local --concurrency 6
+          → artifact day-<d>-<part> = data/days/<d>.part-<part>.json, kept 3 days
+publish   needs every ingest job; contents: write, concurrency group pipeline, 120 min
+          download every day-* artifact into data/days
+          merge-day --date <d> --parts 0-5,6-11,12-17,18-23 --storage github --from-directory data   (each day)
+          pipeline.ts --storage github --date <last day> [--season]   (ingest skipped: the day exists)
+```
+
+`.github/workflows/pipeline.yml` runs daily at 06:00 UTC and on manual dispatch (optional `date` and `season`). `.github/workflows/backfill.yml` is manual (`from`, `to`, optional `season`) and refuses ranges over 20 days (80 ingest jobs). A failed part blocks `publish`; "Re-run failed jobs" reruns only the failed parts and then publishes, while the other artifacts stay. Only `publish` is in the `pipeline` concurrency group, so two runs never write releases at the same time; ingest jobs only read the mirror. `ARCHIVE_BASE_URL` comes from the repository variable `vars.ARCHIVE_BASE_URL` when it is set. `publish` sets `DATA_REPOSITORY: ${{ github.repository }}` and `GITHUB_TOKEN` to the `GH_PAT` secret when present, else the workflow token, for its write steps only; an ordinary daily run makes about 424 content-creating REST requests (see ADR 0005); a classic `GH_PAT` with `public_repo` is recommended for the first of a month (about 850) and backfills.
 
 ## pipeline
 
@@ -63,16 +77,36 @@ bun run scripts/ingest-day.ts --date 2026-10-03 --hours 0-5 --concurrency 2 --ou
 bun run scripts/ingest-day.ts --date 2026-10-03 --storage github --skip-existing
 ```
 
-| Flag              | Default | Meaning                                                      |
-| ----------------- | ------- | ------------------------------------------------------------ |
-| `--date`          | none    | UTC day, `YYYY-MM-DD`. Required.                             |
-| `--hours`         | `0-23`  | Range `a-b` or comma list `1,5,9`.                           |
-| `--concurrency`   | `4`     | GH Archive hours streamed at the same time.                  |
-| `--out`           | `data`  | Output root; the aggregate goes to `<out>/days/<date>.json`. |
-| `--storage`       | `local` | `local`, `github` or `blob`, see Storage.                    |
-| `--skip-existing` | off     | Exit 0 without downloading when the day file already exists. |
+| Flag              | Default | Meaning                                                                                                                                                                     |
+| ----------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--date`          | none    | UTC day, `YYYY-MM-DD`. Required.                                                                                                                                            |
+| `--hours`         | `0-23`  | Range `a-b` or comma list `1,5,9`.                                                                                                                                          |
+| `--concurrency`   | `4`     | GH Archive hours streamed at the same time.                                                                                                                                 |
+| `--out`           | `data`  | Output root; the aggregate goes to `<out>/days/<date>.json`.                                                                                                                |
+| `--storage`       | `local` | `local`, `github` or `blob`, see Storage.                                                                                                                                   |
+| `--skip-existing` | off     | Exit 0 without downloading when the day file already exists.                                                                                                                |
+| `--part`          | off     | Write the day part `<out>/days/<date>.part-<hours>.json` instead of the day file. Needs `--hours` as a range or one hour and `--storage local`; not with `--skip-existing`. |
+
+With `--part` the aggregate of the given hours goes to `days/<date>.part-<hours>.json` (`--hours 0-5` → `days/2026-10-03.part-0-5.json`), for `merge-day`. Parts are local files only: release asset names accept only day files, so `--part` with `--storage github` or `blob` fails.
 
 It prints per-hour and day metrics (bytes, lines, pre-filtered lines, decoded events, merges by kind, stars, wall time, peak RSS) and exits non-zero when an hour fails, for example a 404 for an hour GH Archive has not published yet; that error names the hour and says the day is not complete in the archive yet. With `--skip-existing` and an existing day it prints `<date> already ingested, skipping` instead. `data/` is gitignored.
+
+## merge-day
+
+```sh
+bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-5,6-11,12-17,18-23              # data/days/… → data/days/2026-10-03.json
+bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-11,12-23 --from-directory parts --storage github
+```
+
+| Flag               | Default | Meaning                                                                              |
+| ------------------ | ------- | ------------------------------------------------------------------------------------ |
+| `--date`           | none    | UTC day, `YYYY-MM-DD`. Required.                                                     |
+| `--parts`          | none    | Comma list of part labels (the `--hours` of each `ingest-day --part` run). Required. |
+| `--from-directory` | `data`  | Local root holding the parts at `<dir>/days/<date>.part-<label>.json`.               |
+| `--storage`        | `local` | Where the merged day goes: `local`, `github` or `blob`, see Storage.                 |
+| `--data`           | `data`  | Data root for `--storage local`.                                                     |
+
+The labels must cover hours 0–23 exactly once (`0-5,6-12` fails: hours 13–23 are in no part; `0-12,12-23` fails: hour 12 is in both). It reads every part, fails naming a missing one, merges them (rows, own-repo merges, stars and totals summed; merge authors recounted; a pull request number repeated in a row counted once) and writes `days/<date>.json`, then prints the totals, rows, repositories and output size. Merging hour parts gives the same file as one `ingest-day` over all hours unless the archive repeats a merge event across parts.
 
 ## build-ranking
 

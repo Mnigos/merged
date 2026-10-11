@@ -2,7 +2,11 @@ import { describe, expect, it } from '@effect/vitest'
 import { githubLoginSchema } from '@shared/schema/github-login'
 import { isoDateSchema } from '@shared/schema/iso-date'
 import { Result, Schema } from 'effect'
-import { aggregateDay, dailyAggregateSchema } from './daily-aggregate'
+import {
+	aggregateDay,
+	dailyAggregateSchema,
+	mergeDailyAggregates,
+} from './daily-aggregate'
 import type { MergeEvent, MergeKind } from './merge-event'
 
 const date = isoDateSchema.make('2026-10-03')
@@ -175,6 +179,139 @@ describe('aggregateDay', () => {
 			contributions: [],
 			ownRepoMerges: {},
 			repositories: [],
+		})
+	})
+})
+
+describe('mergeDailyAggregates', () => {
+	const morning = aggregateDay({
+		date,
+		merges: [
+			merge({ author: 'alice', repository: 'acme/widgets', number: 9 }),
+			merge({ author: 'alice', repository: 'acme/widgets', number: 4 }),
+			merge({ author: 'bob', repository: 'zed/tool', number: 1 }),
+			merge({ author: 'alice', repository: 'alice/x', mergeKind: 'ownRepo' }),
+		],
+		stars: [star('acme/widgets'), star('lonely/repo')],
+	})
+	const evening = aggregateDay({
+		date,
+		merges: [
+			merge({ author: 'alice', repository: 'acme/widgets', number: 9 }),
+			merge({ author: 'alice', repository: 'acme/widgets', number: 2 }),
+			merge({
+				author: 'carol',
+				repository: 'acme/widgets',
+				mergeKind: 'selfMerged',
+				number: 3,
+			}),
+			merge({ author: 'alice', repository: 'alice/y', mergeKind: 'ownRepo' }),
+			merge({ author: 'dan', repository: 'dan/z', mergeKind: 'ownRepo' }),
+		],
+		stars: [star('acme/widgets'), star('acme/widgets'), star('beta/app')],
+	})
+	const merged = Result.getOrThrow(mergeDailyAggregates([morning, evening]))
+
+	it('sums an (author, repository) row across parts, a repeated pull request once', () => {
+		expect(merged.contributions).toEqual([
+			{
+				author: 'alice',
+				repository: 'acme/widgets',
+				merged: 3,
+				selfMerged: 0,
+				mergedPullRequests: [2, 4, 9],
+			},
+			{
+				author: 'carol',
+				repository: 'acme/widgets',
+				merged: 0,
+				selfMerged: 1,
+				mergedPullRequests: [],
+			},
+			{
+				author: 'bob',
+				repository: 'zed/tool',
+				merged: 1,
+				selfMerged: 0,
+				mergedPullRequests: [1],
+			},
+		])
+	})
+
+	it('sums stars and recounts distinct merge authors per repository', () => {
+		expect(merged.repositories).toEqual([
+			{ repository: 'acme/widgets', stars: 3, mergeAuthors: 2 },
+			{ repository: 'beta/app', stars: 1, mergeAuthors: 0 },
+			{ repository: 'lonely/repo', stars: 1, mergeAuthors: 0 },
+			{ repository: 'zed/tool', stars: 0, mergeAuthors: 1 },
+		])
+	})
+
+	it('sums own-repo merges per login and totals, without the repeated pull request', () => {
+		expect(merged.ownRepoMerges).toEqual({ alice: 2, dan: 1 })
+		expect(Object.keys(merged.ownRepoMerges)).toEqual(['alice', 'dan'])
+		expect(merged.totals).toEqual({
+			merged: 4,
+			selfMerged: 1,
+			ownRepo: 3,
+			stars: 5,
+		})
+	})
+
+	it('equals the aggregate of every event when no pull request repeats', () => {
+		const first = [
+			merge({ author: 'bob', repository: 'zed/tool', number: 1 }),
+			merge({ author: 'alice', repository: 'acme/widgets', number: 7 }),
+		]
+		const second = [
+			merge({ author: 'alice', repository: 'acme/widgets', number: 3 }),
+			merge({ author: 'eve', repository: 'eve/x', mergeKind: 'ownRepo' }),
+		]
+
+		expect(
+			Result.getOrThrow(
+				mergeDailyAggregates([
+					aggregateDay({ date, merges: first, stars: [star('zed/tool')] }),
+					aggregateDay({ date, merges: second, stars: [star('acme/x')] }),
+				])
+			)
+		).toEqual(
+			aggregateDay({
+				date,
+				merges: [...second, ...first],
+				stars: [star('acme/x'), star('zed/tool')],
+			})
+		)
+	})
+
+	it('does not depend on the order of the parts', () => {
+		expect(Result.getOrThrow(mergeDailyAggregates([evening, morning]))).toEqual(
+			merged
+		)
+	})
+
+	it('returns a single part unchanged', () => {
+		expect(Result.getOrThrow(mergeDailyAggregates([morning]))).toEqual(morning)
+	})
+
+	it('fails without parts', () => {
+		expect(Result.merge(mergeDailyAggregates([]))).toMatchObject({
+			_tag: 'DailyAggregateMergeError',
+			dates: [],
+		})
+	})
+
+	it('fails for parts of different days', () => {
+		expect(
+			Result.merge(
+				mergeDailyAggregates([
+					morning,
+					{ ...evening, date: isoDateSchema.make('2026-10-04') },
+				])
+			)
+		).toMatchObject({
+			_tag: 'DailyAggregateMergeError',
+			dates: ['2026-10-03', '2026-10-04'],
 		})
 	})
 })
