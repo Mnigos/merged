@@ -66,7 +66,21 @@ jobs:
       max-parallel: 20
       matrix:
         date: ${{ fromJSON(needs.prepare.outputs.dates) }}
-        part: ['0-5', '6-11', '12-17', '18-23']
+        part:
+          [
+            '0-1',
+            '2-3',
+            '4-5',
+            '6-7',
+            '8-9',
+            '10-11',
+            '12-13',
+            '14-15',
+            '16-17',
+            '18-19',
+            '20-21',
+            '22-23',
+          ]
     env:
       DATE: ${{ matrix.date }}
       PART: ${{ matrix.part }}
@@ -86,7 +100,7 @@ jobs:
         run: echo "ARCHIVE_BASE_URL=$ARCHIVE_BASE_URL" >> "$GITHUB_ENV"
 
       - name: Ingest the day part
-        run: bun run scripts/ingest-day.ts --date "$DATE" --hours "$PART" --part --out data --storage local --concurrency 6
+        run: bun run scripts/ingest-day.ts --date "$DATE" --hours "$PART" --part --out data --storage local --concurrency 2
 
       - uses: actions/upload-artifact@v4
         with:
@@ -128,7 +142,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
           for date in $(jq -r '.[]' <<< "$DATES"); do
-            bun run scripts/merge-day.ts --date "$date" --parts 0-5,6-11,12-17,18-23 --storage github --from-directory data
+            bun run scripts/merge-day.ts --date "$date" --parts 0-1,2-3,4-5,6-7,8-9,10-11,12-13,14-15,16-17,18-19,20-21,22-23 --storage github --from-directory data
           done
 
       - name: Rank, enrich, rank
