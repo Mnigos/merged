@@ -1,6 +1,6 @@
 # ADR 0004: Pipeline On GitHub Actions With Vercel Blob
 
-**Status:** Accepted
+**Status:** Accepted; storage part superseded by [ADR 0005](./0005-data-files-on-github-releases.md)
 **Date:** 2026-10-05
 
 ## Context
@@ -13,7 +13,7 @@ A day of GH Archive is 24 gzipped hourly files. The leaderboard needs one recomp
   - `ingest-day --date`: stream the day's files, drop lines without a `PullRequestEvent` or `WatchEvent` prefix before parsing, decode with Schema, write one daily aggregate. Four files in parallel.
   - `enrich --season`: scoring pass 1, pick candidates (top 5,000 contributors, top 50,000 for profiles), batched GraphQL with 100 aliases per query, retry with backoff, a 1,500 points per minute limiter, results cached in Blob.
   - `build-ranking --season`: scoring pass 2, boards, percentiles, shards, season index.
-- **Vercel Blob** holds every file as JSON; the layout is in [ARCHITECTURE.md](../../ARCHITECTURE.md#data-files-in-blob). Each file has one writer module.
+- **Vercel Blob** holds every file as JSON; the layout is in [ARCHITECTURE.md](../../ARCHITECTURE.md#data-files). Each file has one writer module.
 - A separate backfill workflow runs `ingest-day` as a matrix over dates.
 
 ## Consequences
@@ -29,7 +29,10 @@ A day of GH Archive is 24 gzipped hourly files. The leaderboard needs one recomp
 - **2026-10-10, workflow shape:** both workflows run one step, `scripts/pipeline.ts --storage blob`, in one process: ingest (yesterday by default, a `--from`..`--date` range for backfill, existing days skipped), then `build-ranking` (pass 1, picks candidates), `enrich`, `build-ranking` (pass 2). On the first of a month the same chain runs first for the season that just closed, so its pass 2 newcomers are enriched before its final build. One process, not one workflow step per command: Vercel serves public Blob URLs through a CDN, and an overwritten file can be served in its previous version for up to 60 s even with `cache-control: no-cache`, so separate processes could read the previous generation of `candidates.json` or the profile files. All modules share one `writeThroughJsonStorageLayer` that serves a run's own writes from memory. `build-ranking` runs twice because each run regenerates the candidates from its own scoring; newcomers of pass 2 are enriched by the next run, and cached entries cost nothing. Backfill is not a matrix: days run sequentially in the same process (a day takes about 10 s). Both workflows share the `pipeline` concurrency group without cancelling, so they never write Blob at the same time. Without a `GH_PAT` secret `enrich` uses the workflow's `GITHUB_TOKEN`, which works but has a smaller per-repository GraphQL budget; a classic PAT with `public_repo` or no scopes gets the 5,000-point hourly budget.
 - **2026-10-10, GH Archive degraded; switched to the OpenDigger mirror:** since early 2026 `data.gharchive.org` has lost most events (2026-10-05 hour 2 has 811 `merged` pull request events there and 24,965 on the mirror; [gharchive.org#320](https://github.com/igrigorik/gharchive.org/issues/320), [#310](https://github.com/igrigorik/gharchive.org/issues/310)). OpenDigger mirrors the same public events with the same file names at `https://gharchive.open-digger.cn/YYYY-MM-DD-H.json.gz`, hourly since 2026-09-06 ([#323](https://github.com/igrigorik/gharchive.org/issues/323)); `ingest-day` reads it by default and `ARCHIVE_BASE_URL` switches back. Verified against the GitHub API: the actor of a `merged` event is the pull request author, also when someone else merged (`pingdotgg/t3code#17553`). Hourly files are about 400 MB gzipped (300–650 MB) instead of 6–18 MB, a day about 8–10 GB. Measured on a laptop for 2026-10-09: 9.58 GB, 14.9 M lines, 688,764 merges (243,665 merged, 445,099 own-repo), 92,114 contribution rows, 193,615 repositories, a 25.3 MB daily aggregate, 5.4 min wall with four hours in parallel, 1.1 GB peak RSS. A body that breaks off resumes with an HTTP `Range` request. With the complete feed a season has hundreds of thousands of repositories, so enrichment is back to the candidates' repositories (every repository of the top 3,000 contributors, at most 20,000, most merged pull requests first) instead of every repository of the season.
 
+- **2026-10-11, storage moved to GitHub Releases:** Vercel suspended the Hobby Blob store under the pipeline's load (hundreds of MB and thousands of put operations per build). Data files are now release assets of this repository, written by the same workflows with `--storage github` and `contents: write`, read by the website without a token; shards go to 128 and pass 1 writes only the candidates. Details in [ADR 0005](./0005-data-files-on-github-releases.md). The workflow shape above (one process, write-through cache, `pipeline` concurrency group) is unchanged; the Blob adapter remains as `--storage blob`.
+
 ## Related
 
 - [docs/plan.html](../plan.html), sections Pipeline and Ryzyka
 - [ADR 0001: Stack And No-Database Architecture](./0001-stack-and-no-database-architecture.md)
+- [ADR 0005: Data Files On GitHub Releases](./0005-data-files-on-github-releases.md)

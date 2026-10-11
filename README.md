@@ -6,7 +6,7 @@ A monthly leaderboard of open source contributors, computed only from pull reque
 
 ## Docs
 
-- [ARCHITECTURE.md](ARCHITECTURE.md): modules, layers, dependency rules, data files in Blob.
+- [ARCHITECTURE.md](ARCHITECTURE.md): modules, layers, dependency rules, data files.
 - [UBIQUITOUS_LANGUAGE.md](UBIQUITOUS_LANGUAGE.md): domain vocabulary.
 - [docs/decisions](docs/decisions): architecture decision records.
 - [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md): workflow and code rules.
@@ -29,7 +29,7 @@ A monthly leaderboard of open source contributors, computed only from pull reque
 A modular monolith in one package; rules in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 - `src/modules/<module>/`: bounded contexts `ingest`, `ranking`, `profiles`, `share`, each layered into `domain/`, `application/`, `infrastructure/`, `presentation/`
-- `src/shared/`: cross-module kernel (Schema helpers, Blob storage, GitHub client, config, errors, UI primitives, utils)
+- `src/shared/`: cross-module kernel (Schema helpers, JSON storage on GitHub Releases or Blob, GitHub client, config, errors, UI primitives, utils)
 - `src/routes/`: thin file-based routes
 - `src/runtime/`: app composition root for server functions
 - `scripts/`: data pipeline entrypoints, see [scripts/README.md](scripts/README.md)
@@ -49,18 +49,17 @@ bun run scripts/smoke.ts   # proves Effect runs under Bun
 
 ## Pipeline
 
-GitHub Actions run the data pipeline and store every file as public JSON in Vercel Blob; the website reads the same files by URL. `.github/workflows/pipeline.yml` runs `scripts/pipeline.ts` daily at 06:00 UTC: in one process it ingests yesterday's GH Archive data from the [OpenDigger mirror](https://gharchive.open-digger.cn) (the official feed has lost most events since 2026), scores the season, enriches candidates through GitHub GraphQL, and scores again. `.github/workflows/backfill.yml` runs the same script over a date range on demand. Both can be started from the Actions tab. Commands, flags and local runs are in [scripts/README.md](scripts/README.md); the reasoning is in [ADR 0004](docs/decisions/0004-pipeline-on-github-actions-with-vercel-blob.md).
+GitHub Actions run the data pipeline and store every file as a public JSON asset of a GitHub Release in this repository (tags `days-<YYYY-MM>`, `season-<YYYY-MM>`, `index`); the website reads the same files by their download URL without a token. `.github/workflows/pipeline.yml` runs `scripts/pipeline.ts` daily at 06:00 UTC: in one process it ingests yesterday's GH Archive data from the [OpenDigger mirror](https://gharchive.open-digger.cn) (the official feed has lost most events since 2026), scores the season, enriches candidates through GitHub GraphQL, and scores again. `.github/workflows/backfill.yml` runs the same script over a date range on demand. Both can be started from the Actions tab. Commands, flags and local runs are in [scripts/README.md](scripts/README.md); the reasoning is in [ADR 0004](docs/decisions/0004-pipeline-on-github-actions-with-vercel-blob.md) and [ADR 0005](docs/decisions/0005-data-files-on-github-releases.md). Vercel Blob stays available as `--storage blob` / `DATA_SOURCE=blob`.
 
 ```sh
 GITHUB_TOKEN="$(gh auth token)" bun run scripts/pipeline.ts --date 2026-10-03   # local disk under data/
 ```
 
-| Where                   | Name                    | Value                                                                                                                                     |
-| ----------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| GitHub Actions secret   | `BLOB_READ_WRITE_TOKEN` | Read-write token of the Vercel Blob store.                                                                                                |
-| GitHub Actions variable | `BLOB_BASE_URL`         | Public store URL, such as `https://xxxx.public.blob.vercel-storage.com`, no trailing slash.                                               |
-| GitHub Actions secret   | `GH_PAT` (optional)     | Classic PAT with `public_repo` or no scopes for the 5,000-point GraphQL budget; without it `enrich` uses the rate-limited workflow token. |
-| Vercel environment      | `BLOB_BASE_URL`         | Same store URL; the website only reads, so it needs no Blob token.                                                                        |
+| Where                 | Name                   | Value                                                                                                                                                                                   |
+| --------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workflow env          | `DATA_REPOSITORY`      | Set by the workflows to `${{ github.repository }}`; defaults to `Mnigos/merged`. The workflows need `permissions: contents: write`.                                                     |
+| GitHub Actions secret | `GH_PAT` (recommended) | Classic PAT with `public_repo`: writes the release assets and gets 5,000 REST requests and GraphQL points an hour; without it the workflow token (1,000 REST requests an hour) is used. |
+| Vercel environment    | `DATA_SOURCE`          | `github`; the website reads release assets without a token. `DATA_REPOSITORY` is optional (setting it also selects `github`). No Blob variables are needed.                             |
 
 ## Impeccable
 

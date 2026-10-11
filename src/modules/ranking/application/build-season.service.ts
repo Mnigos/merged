@@ -29,9 +29,14 @@ import { SeasonStore } from './season-store.port'
 /** Shard files written at the same time. */
 export const SHARD_WRITE_CONCURRENCY = 8
 
+/** What a build writes: every file, or only the candidates for enrichment. */
+export type BuildSeasonPublish = 'all' | 'candidatesOnly'
+
 export interface BuildSeasonOptions {
 	/** Contributors selected as candidates for enrichment. */
 	readonly candidateContributors?: number
+	/** `candidatesOnly` scores and writes only `candidates.json`; `all` by default. */
+	readonly publish?: BuildSeasonPublish
 }
 
 export interface BuildSeasonShape {
@@ -47,9 +52,11 @@ export interface BuildSeasonShape {
 /**
  * Scores a season from its daily aggregates, read one at a time in date order
  * and folded into the season so only one day is in memory, and writes every file the website
- * reads in this order: candidates, all 1024 shards, boards, and the season index
+ * reads in this order: candidates, all 128 shards, boards, and the season index
  * last, so a failure mid-run leaves boards and index on the previous build as
- * far as possible. Builds run one at a time; a failed build is repaired by
+ * far as possible. With `publish: 'candidatesOnly'` it writes only the
+ * candidates, for a scoring pass 1 whose shards, boards and index pass 2
+ * replaces anyway. Builds run one at a time; a failed build is repaired by
  * rerunning it.
  */
 export class BuildSeason extends Context.Service<
@@ -78,6 +85,7 @@ export class BuildSeason extends Context.Service<
 				seasonId: SeasonId,
 				{
 					candidateContributors = DEFAULT_CANDIDATE_CONTRIBUTORS,
+					publish = 'all',
 				}: BuildSeasonOptions = {}
 			) {
 				const [duration, result] = yield* Effect.timed(
@@ -100,6 +108,23 @@ export class BuildSeason extends Context.Service<
 								contributors: candidateContributors,
 							}
 						)
+						const candidatesWrite = yield* store.writeCandidates({
+							season: seasonId,
+							computedAt,
+							...candidates,
+						})
+						const entry = toSeasonIndexEntry({ season, scored, now })
+						const built = {
+							season,
+							scored,
+							candidates,
+							publish,
+							status: entry.status,
+							missingDays: entry.missingDays,
+						}
+						if (publish === 'candidatesOnly')
+							return { ...built, writes: [candidatesWrite] }
+
 						const boards = buildBoards({
 							season,
 							scored,
@@ -115,11 +140,7 @@ export class BuildSeason extends Context.Service<
 						})
 
 						const fileWrites = [
-							yield* store.writeCandidates({
-								season: seasonId,
-								computedAt,
-								...candidates,
-							}),
+							candidatesWrite,
 							...(yield* Effect.forEach(
 								shards,
 								([shardKey, shard]) => store.writeShard(shardKey, shard),
@@ -129,18 +150,13 @@ export class BuildSeason extends Context.Service<
 							yield* store.writeBoard(boards.poland),
 							yield* store.writeRepositoryBoard(boards.repositories),
 						]
-						const entry = toSeasonIndexEntry({ season, scored, now })
 						const index = upsertSeasonIndex(
 							Option.getOrUndefined(yield* store.readIndex()),
 							entry
 						)
 
 						return {
-							season,
-							scored,
-							candidates,
-							status: entry.status,
-							missingDays: entry.missingDays,
+							...built,
 							writes: [...fileWrites, yield* store.writeIndex(index)],
 						}
 					})
@@ -152,6 +168,7 @@ export class BuildSeason extends Context.Service<
 				yield* Effect.logInfo('season built').pipe(
 					Effect.annotateLogs({
 						season: report.season,
+						published: report.published,
 						days: report.daysIncluded.length,
 						contributors: report.contributors,
 						ms: report.durationMs,
