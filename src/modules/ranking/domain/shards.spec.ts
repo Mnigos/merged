@@ -12,24 +12,24 @@ import { scoreSeason } from './score-season'
 import { buildShards, SHARD_COUNT, SHARD_KEYS, shardKeyOf } from './shards'
 
 describe('shardKeyOf', () => {
-	it('takes the low 10 bits of the FNV-1a 32-bit hash', () => {
-		expect(shardKeyOf('')).toBe('1c5')
-		expect(shardKeyOf('a')).toBe('12c')
-		expect(shardKeyOf('foobar')).toBe('168')
+	it('takes the low 7 bits of the FNV-1a 32-bit hash', () => {
+		expect(shardKeyOf('')).toBe('45')
+		expect(shardKeyOf('a')).toBe('2c')
+		expect(shardKeyOf('foobar')).toBe('68')
 	})
 
 	it('ignores case', () => {
 		expect(shardKeyOf('Mnigos')).toBe(shardKeyOf('mnigos'))
 	})
 
-	it('always returns three lowercase hex characters from 000 to 3ff', () => {
+	it('always returns two lowercase hex characters from 00 to 7f', () => {
 		for (const name of ['torvalds', 'sindresorhus', 'x', 'dependabot[bot]'])
-			expect(shardKeyOf(name)).toMatch(/^[0-3][\da-f]{2}$/u)
+			expect(shardKeyOf(name)).toMatch(/^[0-7][\da-f]$/u)
 	})
 
 	it('spreads logins over the shards', () => {
 		const used = new Set(
-			Array.from({ length: 20_000 }, (_, index) => shardKeyOf(`user${index}`))
+			Array.from({ length: 5000 }, (_, index) => shardKeyOf(`user${index}`))
 		)
 
 		expect(used.size).toBe(SHARD_COUNT)
@@ -71,10 +71,10 @@ describe('buildShards', () => {
 	const entryOf = (name: string) =>
 		shards.get(shardKeyOf(name))?.entries[login(name)]
 
-	it('writes all 1024 shards, empty ones included', () => {
+	it('writes all 128 shards, empty ones included', () => {
 		expect(SHARD_KEYS).toEqual(
-			Array.from({ length: 1024 }, (_, index) =>
-				index.toString(16).padStart(3, '0')
+			Array.from({ length: 128 }, (_, index) =>
+				index.toString(16).padStart(2, '0')
 			)
 		)
 		expect([...shards.keys()]).toEqual(SHARD_KEYS)

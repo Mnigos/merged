@@ -12,7 +12,6 @@ import {
 	Semaphore,
 } from 'effect'
 import {
-	Headers,
 	HttpClient,
 	HttpClientRequest,
 	type HttpClientResponse,
@@ -20,6 +19,13 @@ import {
 import { graphqlRateLimitSchema } from './github-graphql-rate-limit'
 import { GitHubGraphqlError } from './github-graphql.error'
 import { GitHubGraphql, type GraphqlResponse } from './github-graphql.port'
+import {
+	DEFAULT_RATE_LIMIT_WAIT,
+	toRateLimitWaitMs,
+	toRejectionWaitMs,
+	waitForRateLimit,
+} from './rate-limit-wait'
+import { redactSecrets } from './redact-secrets'
 
 /** GitHub GraphQL endpoint. */
 export const GITHUB_GRAPHQL_URL = 'https://api.github.com/graphql'
@@ -29,9 +35,6 @@ export const REQUEST_RETRIES = 5
 
 /** Points left in the hourly budget below which the next query waits for `resetAt`. */
 export const MIN_REMAINING_POINTS = 100
-
-/** Wait when GitHub reports a rate limit without saying until when. */
-export const DEFAULT_RATE_LIMIT_WAIT = Duration.minutes(1)
 
 const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([500, 502, 503, 504])
 
@@ -54,69 +57,8 @@ const decodeRateLimit = Schema.decodeUnknownOption(
 	Schema.Struct({ rateLimit: graphqlRateLimitSchema })
 )
 
-const readHeader = (
-	response: HttpClientResponse.HttpClientResponse,
-	name: string
-) => Option.getOrUndefined(Headers.get(response.headers, name))
-
-/**
- * How long to wait before retrying a rate-limited response: `retry-after`
- * seconds, or until `x-ratelimit-reset` when `x-ratelimit-remaining` is 0;
- * `undefined` when the response does not say it is rate limited.
- */
-function toRateLimitWaitMs(
-	response: HttpClientResponse.HttpClientResponse,
-	nowMs: number
-) {
-	const retryAfter = Number(readHeader(response, 'retry-after'))
-	if (Number.isFinite(retryAfter) && retryAfter >= 0) return retryAfter * 1000
-	if (readHeader(response, 'x-ratelimit-remaining') !== '0') return undefined
-
-	const resetSeconds = Number(readHeader(response, 'x-ratelimit-reset'))
-	if (!Number.isFinite(resetSeconds))
-		return Duration.toMillis(DEFAULT_RATE_LIMIT_WAIT)
-
-	return Math.max(0, resetSeconds * 1000 - nowMs) + 1000
-}
-
-/** A 403 body GitHub sends for its secondary (abuse) rate limit, not for missing permissions. */
-const SECONDARY_RATE_LIMIT = /secondary rate limit|abuse/iu
-
-const TOKEN_LIKE = /\b(?:bearer|token)\s+\S+|\b(?:gh[oprsu]_|github_pat_)\w+/giu
-
-/** `text` without the token itself, `Bearer …`/`token …` values and GitHub token-shaped strings. */
-export const redactSecrets = (text: string, secret: string) =>
-	(secret ? text.replaceAll(secret, '[redacted]') : text).replace(
-		TOKEN_LIKE,
-		'[redacted]'
-	)
-
-/**
- * Wait before retrying a 403 or 429: what the headers say (see
- * `toRateLimitWaitMs`), else `DEFAULT_RATE_LIMIT_WAIT` for a 429 or a 403
- * about the secondary rate limit; `undefined` for a 403 about permissions.
- */
-function toRejectionWaitMs(
-	response: HttpClientResponse.HttpClientResponse,
-	body: string,
-	nowMs: number
-) {
-	const waitMs = toRateLimitWaitMs(response, nowMs)
-	if (waitMs !== undefined) return waitMs
-	if (response.status === 429 || SECONDARY_RATE_LIMIT.test(body))
-		return Duration.toMillis(DEFAULT_RATE_LIMIT_WAIT)
-
-	return undefined
-}
-
 const readBody = (response: HttpClientResponse.HttpClientResponse) =>
 	response.text.pipe(Effect.orElseSucceed(() => ''))
-
-const waitForRateLimit = (waitMs: number, status?: number) =>
-	Effect.logInfo('GitHub rate limit reached, waiting').pipe(
-		Effect.annotateLogs({ status, seconds: Math.ceil(waitMs / 1000) }),
-		Effect.andThen(Effect.sleep(Duration.millis(waitMs)))
-	)
 
 /**
  * `GitHubGraphql` over HTTP with `GITHUB_TOKEN`. Queries run one at a time;

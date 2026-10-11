@@ -7,14 +7,13 @@ import {
 } from 'effect/http'
 import { TestClock } from 'effect/testing'
 import {
-	DEFAULT_RATE_LIMIT_WAIT,
 	GITHUB_GRAPHQL_URL,
 	githubGraphqlHttpLayer,
 	MIN_REMAINING_POINTS,
-	redactSecrets,
 	REQUEST_RETRIES,
 } from './github-graphql-http'
 import { GitHubGraphql } from './github-graphql.port'
+import { DEFAULT_RATE_LIMIT_WAIT } from './rate-limit-wait'
 
 interface ScriptedResponse {
 	readonly delay?: Duration.Input
@@ -411,14 +410,5 @@ describe('githubGraphqlHttpLayer', () => {
 			})
 			expect(requests).toHaveLength(1)
 		}).pipe(Effect.provide(layer))
-	})
-
-	it('redacts the token, bearer values and GitHub token shapes', () => {
-		expect(
-			redactSecrets(
-				'secret-123 Bearer abc token xyz ghp_AbC123 github_pat_11AB_cd',
-				'secret-123'
-			)
-		).toBe('[redacted] [redacted] [redacted] [redacted] [redacted]')
 	})
 })

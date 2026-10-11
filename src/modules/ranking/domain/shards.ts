@@ -9,15 +9,15 @@ import type {
 	ScoredSeason,
 } from './score-season'
 
-/** Number of shards; a shard key is three lowercase hex characters. */
-export const SHARD_COUNT = 1024
+/** Number of shards; a shard key is two lowercase hex characters. */
+export const SHARD_COUNT = 128
 
 const SHARD_KEY_MASK = SHARD_COUNT - 1
 
-/** Every shard key, `000` to `3ff`. */
+/** Every shard key, `00` to `7f`. */
 export const SHARD_KEYS: readonly string[] = Array.from(
 	{ length: SHARD_COUNT },
-	(_, index) => index.toString(16).padStart(3, '0')
+	(_, index) => index.toString(16).padStart(2, '0')
 )
 
 const FNV_OFFSET_BASIS = 0x81_1c_9d_c5
@@ -26,8 +26,8 @@ const encoder = new TextEncoder()
 
 /* oxlint-disable no-bitwise -- FNV-1a is defined over 32-bit XOR and multiply */
 /**
- * Shard of a login: the low 10 bits of the 32-bit FNV-1a hash of the lowercase
- * login's UTF-8 bytes, as three lowercase hex characters. The website computes
+ * Shard of a login: the low 7 bits of the 32-bit FNV-1a hash of the lowercase
+ * login's UTF-8 bytes, as two lowercase hex characters. The website computes
  * the same key to fetch one shard per lookup.
  */
 export function shardKeyOf(login: string) {
@@ -37,7 +37,7 @@ export function shardKeyOf(login: string) {
 		hash = Math.imul(hash, FNV_PRIME) >>> 0
 	}
 
-	return (hash & SHARD_KEY_MASK).toString(16).padStart(3, '0')
+	return (hash & SHARD_KEY_MASK).toString(16).padStart(2, '0')
 }
 /* oxlint-enable no-bitwise */
 
@@ -91,7 +91,7 @@ export interface ShardsInput {
 }
 
 /**
- * Every one of the 1024 shard files, empty ones included, keyed by shard key.
+ * Every one of the 128 shard files, empty ones included, keyed by shard key.
  * Ranked and excluded contributors both get an entry; entries are in login order.
  */
 export function buildShards({

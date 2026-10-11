@@ -6,13 +6,13 @@ This file is not a context document. Module ownership lives in [ARCHITECTURE.md]
 
 ## Core DDD
 
-| Term                    | Definition                                                                                  | Aliases to avoid              |
-| ----------------------- | ------------------------------------------------------------------------------------------- | ----------------------------- |
-| **Bounded context**     | A product area with its own model, rules, and language; one folder in `src/modules/`.       | folder, feature, service      |
-| **Application service** | Effect service that runs one module's use cases and is the only way other modules reach it. | manager, controller, helper   |
-| **Port**                | Service shape an application layer needs from the outside world, implemented by an adapter. | interface, client, repository |
-| **Adapter**             | Infrastructure Layer that implements a port against GH Archive, GitHub, or Vercel Blob.     | driver, wrapper, service      |
-| **Ubiquitous language** | Shared domain vocabulary used by product, engineering, docs, and issues.                    | context, architecture doc     |
+| Term                    | Definition                                                                                                  | Aliases to avoid              |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| **Bounded context**     | A product area with its own model, rules, and language; one folder in `src/modules/`.                       | folder, feature, service      |
+| **Application service** | Effect service that runs one module's use cases and is the only way other modules reach it.                 | manager, controller, helper   |
+| **Port**                | Service shape an application layer needs from the outside world, implemented by an adapter.                 | interface, client, repository |
+| **Adapter**             | Infrastructure Layer that implements a port against GH Archive, GitHub (GraphQL, Releases), or Vercel Blob. | driver, wrapper, service      |
+| **Ubiquitous language** | Shared domain vocabulary used by product, engineering, docs, and issues.                                    | context, architecture doc     |
 
 ## Contributions
 
@@ -49,7 +49,7 @@ This file is not a context document. Module ownership lives in [ARCHITECTURE.md]
 | **Rank**                | A contributor's 1-based position on a board by score.                                                                                                                                                                                                                                         | place, position, rating          |
 | **Percentile**          | Share of scored contributors in the season with a lower score than this contributor.                                                                                                                                                                                                          | top %, ranking %                 |
 | **Board**               | One tab of the leaderboard with its own ranks: Global, Poland, or a language.                                                                                                                                                                                                                 | tab (in code), list, leaderboard |
-| **Shard**               | One of 1024 Blob files (100–300 KB) holding score, rank, and percentile for every contributor, keyed by login hash.                                                                                                                                                                           | page, chunk, partition           |
+| **Shard**               | One of 128 data files (about 250 KB each with 5 days of data, more at full month) holding score, rank, and percentile for every contributor, keyed by login hash.                                                                                                                             | page, chunk, partition           |
 
 ## Sharing
 

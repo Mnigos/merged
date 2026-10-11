@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   ingest:
@@ -29,8 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
-      BLOB_BASE_URL: ${{ vars.BLOB_BASE_URL }}
+      DATA_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
@@ -47,6 +46,6 @@ jobs:
           INPUT_TO: ${{ inputs.to }}
           INPUT_SEASON: ${{ inputs.season }}
         run: |
-          args=(--storage blob --from "$INPUT_FROM" --date "$INPUT_TO")
+          args=(--storage github --from "$INPUT_FROM" --date "$INPUT_TO")
           if [ -n "$INPUT_SEASON" ]; then args+=(--season "$INPUT_SEASON"); fi
           bun run scripts/pipeline.ts "${args[@]}"
