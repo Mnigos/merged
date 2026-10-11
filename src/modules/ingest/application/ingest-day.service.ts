@@ -3,6 +3,7 @@ import { Context, Duration, Effect, Layer, Stream } from 'effect'
 import { aggregateDay } from '../domain/daily-aggregate'
 import type { ArchiveSourceError } from './archive-source.error'
 import { ArchiveSource } from './archive-source.port'
+import { DayPartStore } from './day-part-store.port'
 import type { DayStoreError } from './day-store.error'
 import { DayStore } from './day-store.port'
 import { emptyHourScan, scanLine } from './hour-scan'
@@ -25,6 +26,8 @@ export const DEFAULT_CONCURRENCY = 4
 export interface IngestDayOptions {
 	readonly hours?: readonly number[]
 	readonly concurrency?: number
+	/** Writes the aggregate as the day part with this label instead of the day file. */
+	readonly part?: string
 }
 
 export interface IngestDayShape {
@@ -50,6 +53,7 @@ export class IngestDay extends Context.Service<IngestDay, IngestDayShape>()(
 		Effect.gen(function* () {
 			const source = yield* ArchiveSource
 			const store = yield* DayStore
+			const partStore = yield* DayPartStore
 
 			const scanHour = Effect.fn('IngestDay.scanHour')(function* (
 				date: IsoDate,
@@ -82,6 +86,7 @@ export class IngestDay extends Context.Service<IngestDay, IngestDayShape>()(
 				{
 					hours = ALL_HOURS,
 					concurrency = DEFAULT_CONCURRENCY,
+					part,
 				}: IngestDayOptions = {}
 			) {
 				const [duration, { scans, aggregate, output }] = yield* Effect.timed(
@@ -100,7 +105,9 @@ export class IngestDay extends Context.Service<IngestDay, IngestDayShape>()(
 						return {
 							scans: hourScans,
 							aggregate: dayAggregate,
-							output: yield* store.write(dayAggregate),
+							output: yield* part === undefined
+								? store.write(dayAggregate)
+								: partStore.write(dayAggregate, part),
 						}
 					})
 				)
