@@ -36,12 +36,12 @@ The OpenDigger mirror serves each client IP at about 0.5 MB/s, whatever the numb
 
 ```
 prepare   the day (pipeline.yml: input or yesterday) or the days (backfill.yml: from..to, at most 20)
-ingest    matrix date × part 0-5, 6-11, 12-17, 18-23; max-parallel 20, fail-fast off, 150 min, contents: read
+ingest    matrix date × part 0-1 … 22-23; max-parallel 20, fail-fast off, 150 min, contents: read
           ingest-day --date <d> --hours <part> --part --out data --storage local --concurrency 6
           → artifact day-<d>-<part> = data/days/<d>.part-<part>.json, kept 3 days
 publish   needs every ingest job; contents: write, concurrency group pipeline, 120 min
           download every day-* artifact into data/days
-          merge-day --date <d> --parts 0-5,6-11,12-17,18-23 --storage github --from-directory data   (each day)
+          merge-day --date <d> --parts 0-1,…,22-23 --storage github --from-directory data   (each day)
           pipeline.ts --storage github --date <last day> [--season]   (ingest skipped: the day exists)
 ```
 
@@ -94,7 +94,7 @@ It prints per-hour and day metrics (bytes, lines, pre-filtered lines, decoded ev
 ## merge-day
 
 ```sh
-bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-5,6-11,12-17,18-23              # data/days/… → data/days/2026-10-03.json
+bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-1,…,22-23              # data/days/… → data/days/2026-10-03.json
 bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-11,12-23 --from-directory parts --storage github
 ```
 
