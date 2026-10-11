@@ -30,7 +30,6 @@ jobs:
     timeout-minutes: 360
     env:
       DATA_REPOSITORY: ${{ github.repository }}
-      GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +41,7 @@ jobs:
 
       - name: Run pipeline over the range
         env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           INPUT_FROM: ${{ inputs.from }}
           INPUT_TO: ${{ inputs.to }}
           INPUT_SEASON: ${{ inputs.season }}

@@ -28,7 +28,6 @@ jobs:
     timeout-minutes: 90
     env:
       DATA_REPOSITORY: ${{ github.repository }}
-      GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,6 +39,7 @@ jobs:
 
       - name: Run pipeline
         env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           INPUT_DATE: ${{ inputs.date }}
           INPUT_SEASON: ${{ inputs.season }}
         run: |
