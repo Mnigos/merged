@@ -22,7 +22,7 @@ merged is a modular monolith in one package ([ADR 0003](docs/decisions/0003-modu
 ```
 Pipeline (GitHub Actions .github/workflows/pipeline.yml, cron 06:00 UTC)
   prepare                              picks the day (input or yesterday)
-  ingest × 4 parts (contents: read)    one runner (own IP) per 6 hours
+  ingest × 12 parts (contents: read)    one runner (own IP) per 6 hours
     ingest-day --hours 0-5 --part      days/<date>.part-0-5.json, uploaded as
                                        artifact day-<date>-0-5
   publish (contents: write, concurrency group pipeline)
