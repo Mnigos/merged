@@ -4,7 +4,9 @@ import { Effect, Layer, Option } from 'effect'
 import hourZero from '../testing/fixtures/archive-hour-0.jsonl?raw'
 import hourOne from '../testing/fixtures/archive-hour-1.jsonl?raw'
 import { inMemoryArchiveSourceLayer } from '../testing/in-memory-archive-source'
+import { inMemoryDayPartStoreLayer } from '../testing/in-memory-day-part-store'
 import { inMemoryDayStoreLayer } from '../testing/in-memory-day-store'
+import { DayPartStore } from './day-part-store.port'
 import { DayStore } from './day-store.port'
 import { IngestDay } from './ingest-day.service'
 
@@ -19,7 +21,8 @@ const testLayer = IngestDay.layer.pipe(
 					[1, hourOne],
 				])
 			),
-			inMemoryDayStoreLayer
+			inMemoryDayStoreLayer,
+			inMemoryDayPartStoreLayer
 		)
 	)
 )
@@ -78,6 +81,30 @@ describe('IngestDay', () => {
 					expectedAggregate
 				)
 			})
+		)
+
+		layerIt.effect(
+			'writes a day part instead of the day file when a part is named',
+			() =>
+				Effect.gen(function* () {
+					const partDate = isoDateSchema.make('2026-10-04')
+					const ingestDay = yield* IngestDay
+					const store = yield* DayStore
+					const partStore = yield* DayPartStore
+
+					const metrics = yield* ingestDay.ingest(partDate, {
+						hours: [0, 1],
+						part: '0-1',
+					})
+
+					expect(metrics.output.location).toBe(
+						'memory://days/2026-10-04.part-0-1.json'
+					)
+					expect(
+						Option.getOrThrow(yield* partStore.read(partDate, '0-1'))
+					).toEqual({ ...expectedAggregate, date: partDate })
+					expect(yield* store.read(partDate)).toEqual(Option.none())
+				})
 		)
 
 		layerIt.effect('reports line, event and merge counts', () =>
@@ -194,7 +221,8 @@ describe('IngestDay', () => {
 						Layer.provideMerge(
 							Layer.mergeAll(
 								inMemoryArchiveSourceLayer(new Map([[0, hourZero + hourOne]])),
-								inMemoryDayStoreLayer
+								inMemoryDayStoreLayer,
+								inMemoryDayPartStoreLayer
 							)
 						)
 					)

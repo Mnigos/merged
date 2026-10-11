@@ -13,17 +13,24 @@ merged is a modular monolith in one package ([ADR 0003](docs/decisions/0003-modu
 | `src/routes/`       | Thin TanStack Start file routes. Compose pages from module `presentation/`.                     |
 | `src/runtime/`      | App composition root: merges module Layers into the runtime that server functions use.          |
 | `src/styles.css`    | Tailwind 4 entry and design tokens.                                                             |
-| `scripts/`          | Pipeline CLI entrypoints (`ingest-day`, `enrich`, `build-ranking`). Wire Layers, call services. |
+| `scripts/`          | Pipeline CLI entrypoints (`ingest-day`, `merge-day`, `enrich`, `build-ranking`, `pipeline`).    |
 | `.github/workflows` | CI, the daily `pipeline.yml` cron and the manual `backfill.yml`, which write the data releases. |
 | `docs/`             | Plan, design mockups, and [decision records](docs/decisions).                                   |
 
 ## Flows
 
 ```
-Pipeline (GitHub Actions .github/workflows/pipeline.yml, cron 06:00 UTC, contents: write)
-  scripts/pipeline.ts --storage github one process, write-through cache over
+Pipeline (GitHub Actions .github/workflows/pipeline.yml, cron 06:00 UTC)
+  prepare                              picks the day (input or yesterday)
+  ingest × 4 parts (contents: read)    one runner (own IP) per 6 hours
+    ingest-day --hours 0-5 --part      days/<date>.part-0-5.json, uploaded as
+                                       artifact day-<date>-0-5
+  publish (contents: write, concurrency group pipeline)
+    merge-day --storage github         downloads the 4 artifacts, merges them,
+                                       publishes days/<date>.json
+    scripts/pipeline.ts --storage github one process, write-through cache over
                                        release assets of this repository
-    ingest-day <yesterday>             skipped when the day exists
+    ingest-day <yesterday>             skipped, the day exists
     [on the 1st: build-ranking → enrich → build-ranking for the closed season]
     build-ranking <season>             pass 1, writes candidates only
     enrich <season>
@@ -45,7 +52,7 @@ Request (Vercel)
 
 | Module     | Owns                                                                                                                                                                                                                                  |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ingest`   | GH Archive hourly files to **Daily aggregates**. Domain: merged pull request events, daily aggregate. Infrastructure: GH Archive source, daily aggregate Blob store.                                                                  |
+| `ingest`   | GH Archive hourly files to **Daily aggregates**. Domain: merged pull request events, daily aggregate and merging of day parts. Infrastructure: GH Archive source, JSON day and day part stores.                                       |
 | `ranking`  | **Score**, **Season**, **Board**, **Rank**, **Percentile**, shards, season index, **Exclusion** rules. Domain holds the scoring formula (`domain/scoring.ts`).                                                                        |
 | `profiles` | **Enrichment** through GitHub GraphQL: real stars and language of the candidates' repositories, name, location, company and avatar of candidates, mergers of their pull requests. Receives the candidates as input; never picks them. |
 | `share`    | **Share card** (OG image), share text, and the README **Badge** endpoint. Reads ranking and profiles through their application services.                                                                                              |
@@ -103,6 +110,8 @@ Modules build typed stores on top of `JsonStorage` in their own `infrastructure/
 ## Ingest
 
 `scripts/ingest-day.ts` runs `IngestDay` (`ingest/application/ingest-day.service.ts`) over the `ArchiveSource` and `DayStore` ports. The official GH Archive feed has lost most events since early 2026, so the adapter (`infrastructure/gh-archive-http-source.ts`) reads the same hourly files from the OpenDigger mirror `https://gharchive.open-digger.cn` (`ARCHIVE_BASE_URL` overrides it); an hour is 300–650 MB gzipped and a day about 9.5 GB. Each hour streams through gunzip and line splitting and is never held in memory; a request is retried with backoff, and a body that breaks off resumes with an HTTP `Range` request from the last byte read; a substring check drops lines without a `PullRequestEvent` or `WatchEvent` marker before JSON parsing, Schema decodes the rest, invalid or irrelevant lines are counted and skipped, and bots are excluded. Hours run concurrently (`DEFAULT_CONCURRENCY`, 4); the day's events become one **Daily aggregate** of about 25 MB.
+
+The mirror serves each client IP at about 0.5 MB/s however many connections it opens, so one runner needs about 4.5 hours for a day. The workflows therefore ingest a day as four **Day parts** of six hours on parallel runners, each with its own IP: `ingest-day --hours 0-5 --part` writes the aggregate of those hours through the `DayPartStore` port (`infrastructure/json-day-part-store.ts`, `days/<date>.part-<hours>.json`, local disk only; release asset paths accept only day files) instead of `DayStore`. `scripts/merge-day.ts` runs `MergeDayParts` (`application/merge-day-parts.service.ts`): it reads the parts the labels name (they must cover hours 0–23 exactly once), merges them with `mergeDailyAggregates` (`domain/daily-aggregate.ts`: rows, own-repo merges, stars and totals summed, merge authors recounted, a pull request number repeated in a row counted once, sorted like `aggregateDay`), and writes the day through `DayStore`, for the workflows to GitHub Releases.
 
 GH Archive trimmed pull request payloads in 2025: a merge is now `action: "merged"` with the author as `actor`, and the merger is absent. The decoder reads that format and the older `closed` plus `merged: true` format; for trimmed events an unknown merger counts as merged by someone else, and the aggregate keeps those pull request numbers so pass 2 can resolve the merger for candidates. Logins and repository names are lowercased; own-repo merges get only a per-author count.
 

@@ -5,6 +5,7 @@ import { vi } from 'vitest'
 import hourZero from '../testing/fixtures/archive-hour-0.jsonl?raw'
 import hourOne from '../testing/fixtures/archive-hour-1.jsonl?raw'
 import { inMemoryArchiveSourceLayer } from '../testing/in-memory-archive-source'
+import { inMemoryDayPartStoreLayer } from '../testing/in-memory-day-part-store'
 import { inMemoryDayStoreLayer } from '../testing/in-memory-day-store'
 import { ArchiveSourceError } from './archive-source.error'
 import { ArchiveSource } from './archive-source.port'
@@ -76,7 +77,11 @@ describe('IngestDay failed hour', () => {
 				Effect.provide(
 					IngestDay.layer.pipe(
 						Layer.provideMerge(
-							Layer.mergeAll(sourceLayer, inMemoryDayStoreLayer)
+							Layer.mergeAll(
+								sourceLayer,
+								inMemoryDayStoreLayer,
+								inMemoryDayPartStoreLayer
+							)
 						)
 					)
 				)

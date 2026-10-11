@@ -1,18 +1,13 @@
 import type { IsoDate } from '@shared/schema/iso-date'
 import { JsonStorage } from '@shared/storage/json-storage.port'
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Effect, Layer, Option } from 'effect'
 import { DayStoreError } from '../application/day-store.error'
 import { DayStore } from '../application/day-store.port'
+import type { DailyAggregate } from '../domain/daily-aggregate'
 import {
-	dailyAggregateSchema,
-	type DailyAggregate,
-} from '../domain/daily-aggregate'
-
-const dailyAggregateJsonSchema = Schema.fromJsonString(dailyAggregateSchema)
-const encodeDailyAggregateJson = Schema.encodeEffect(dailyAggregateJsonSchema)
-const decodeDailyAggregateJson = Schema.decodeUnknownEffect(
-	dailyAggregateJsonSchema
-)
+	decodeDailyAggregateJson,
+	encodeDailyAggregateJson,
+} from './daily-aggregate-json'
 
 /** Storage path of a daily aggregate. */
 export const toDayPath = (date: IsoDate) => `days/${date}.json`

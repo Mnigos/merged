@@ -10,7 +10,9 @@ import { ingestLayer } from '@modules/ingest/ingest.layer'
 import { isoDateSchema } from '@shared/schema/iso-date'
 import { Console, Effect, Layer, Option, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
+import { InvalidPartsError } from './lib/invalid-parts.error'
 import { parseHours } from './lib/parse-hours'
+import { toPartLabel } from './lib/part-labels'
 import { printIngestMetrics } from './lib/reports'
 import {
 	STORAGE_OPTION,
@@ -35,20 +37,32 @@ const readArgs = Effect.suspend(() => {
 			storage: STORAGE_OPTION,
 			out: { type: 'string', default: 'data' },
 			'skip-existing': { type: 'boolean', default: false },
+			part: { type: 'boolean', default: false },
 		},
 	})
 
-	return Effect.fromResult(parseHours(values.hours)).pipe(
-		Effect.flatMap(hours =>
-			Schema.decodeUnknownEffect(argsSchema)({
-				date: values.date,
-				concurrency: Number(values.concurrency ?? DEFAULT_CONCURRENCY),
-				storage: values.storage,
-				out: values.out,
-				skipExisting: values['skip-existing'],
-			}).pipe(Effect.map(args => ({ ...args, hours })))
-		)
-	)
+	return Effect.gen(function* () {
+		const hours = yield* Effect.fromResult(parseHours(values.hours))
+		const args = yield* Schema.decodeUnknownEffect(argsSchema)({
+			date: values.date,
+			concurrency: Number(values.concurrency ?? DEFAULT_CONCURRENCY),
+			storage: values.storage,
+			out: values.out,
+			skipExisting: values['skip-existing'],
+		})
+		if (!values.part) return { ...args, hours, part: undefined }
+
+		const part = yield* Effect.fromResult(toPartLabel(values.hours))
+		if (args.storage !== 'local' || args.skipExisting)
+			return yield* Effect.fail(
+				new InvalidPartsError({
+					input: `--storage ${args.storage}`,
+					message: `--part writes the local file <out>/days/${args.date}.part-${part}.json for merge-day; use --storage local without --skip-existing`,
+				})
+			)
+
+		return { ...args, hours, part }
+	})
 })
 
 const program = Effect.gen(function* () {
@@ -63,6 +77,7 @@ const program = Effect.gen(function* () {
 			yield* (yield* IngestDay).ingest(args.date, {
 				hours: args.hours,
 				concurrency: args.concurrency,
+				part: args.part,
 			})
 		)
 	}).pipe(
