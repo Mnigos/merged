@@ -52,6 +52,10 @@ export const printSeasonReport = (report: BuildSeasonReport) =>
 		yield* Console.table(report.top)
 		yield* Console.table({
 			season: report.season,
+			published:
+				report.published === 'all'
+					? 'all files'
+					: 'candidates only (no shards, boards or index)',
 			status: report.status,
 			daysIncluded: report.daysIncluded.length,
 			missingDays: report.missingDays.join(', ') || 'none',

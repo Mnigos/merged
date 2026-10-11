@@ -83,8 +83,10 @@ function ingestDays(days: readonly IsoDate[], skipExisting: boolean) {
 function rankSeason(season: SeasonId) {
 	return Effect.gen(function* () {
 		const buildSeason = yield* BuildSeason
-		yield* Console.log(`build-ranking ${season}, pass 1`)
-		yield* printSeasonReport(yield* buildSeason.run(season))
+		yield* Console.log(`build-ranking ${season}, pass 1, candidates only`)
+		yield* printSeasonReport(
+			yield* buildSeason.run(season, { publish: 'candidatesOnly' })
+		)
 
 		yield* Console.log(`enrich ${season}`)
 		const candidates = yield* (yield* Candidates)
@@ -105,7 +107,8 @@ function rankSeason(season: SeasonId) {
 
 /**
  * Every module over one write-through storage, so each step reads what the
- * previous steps wrote even when Blob's CDN still serves older files.
+ * previous steps wrote even while a release asset is being renamed or
+ * Blob's CDN serves an older version.
  */
 const toPipelineLayer = (storage: StorageLayerOptions) =>
 	Layer.mergeAll(

@@ -22,6 +22,8 @@ export interface TopContributorPreview {
 /** What one `BuildSeason.run` computed and wrote. */
 export interface BuildSeasonReport {
 	readonly season: SeasonId
+	/** `candidatesOnly` when the build wrote only `candidates.json`. */
+	readonly published: 'all' | 'candidatesOnly'
 	readonly status: SeasonStatus
 	readonly daysIncluded: readonly IsoDate[]
 	readonly missingDays: readonly IsoDate[]
@@ -44,6 +46,7 @@ export interface BuildSeasonReport {
 
 interface BuildSeasonReportInput {
 	readonly season: Season
+	readonly publish: BuildSeasonReport['published']
 	readonly scored: ScoredSeason
 	readonly candidates: Candidates
 	readonly status: SeasonStatus
@@ -55,6 +58,7 @@ interface BuildSeasonReportInput {
 /** Summarizes a season build for the script's output. */
 export const toBuildSeasonReport = ({
 	season,
+	publish,
 	scored,
 	candidates,
 	status,
@@ -63,6 +67,7 @@ export const toBuildSeasonReport = ({
 	durationMs,
 }: BuildSeasonReportInput): BuildSeasonReport => ({
 	season: season.seasonId,
+	published: publish,
 	status,
 	daysIncluded: season.daysIncluded,
 	missingDays,

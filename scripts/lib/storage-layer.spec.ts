@@ -20,7 +20,7 @@ import {
 const platformLayer = Layer.mergeAll(BunFileSystem.layer, BunPath.layer)
 
 describe('storageKindSchema', () => {
-	it.each(['local', 'blob'])('accepts --storage %s', storage => {
+	it.each(['local', 'github', 'blob'])('accepts --storage %s', storage => {
 		const { values } = parseArgs({
 			args: ['--storage', storage],
 			options: { storage: STORAGE_OPTION },
@@ -41,7 +41,7 @@ describe('storageKindSchema', () => {
 	})
 
 	it.effect.each(['s3', '', 'LOCAL'])(
-		'rejects %j and names both allowed storage kinds',
+		'rejects %j and names every allowed storage kind',
 		storage =>
 			Effect.gen(function* () {
 				const error = yield* Effect.flip(
@@ -49,8 +49,8 @@ describe('storageKindSchema', () => {
 				)
 
 				expect(error).toMatchObject({ _tag: 'SchemaError' })
-				expect(error.message).toContain('local')
-				expect(error.message).toContain('blob')
+				for (const kind of ['local', 'github', 'blob'])
+					expect(error.message).toContain(kind)
 			})
 	)
 })
@@ -117,6 +117,48 @@ describe('toStorageLayer', () => {
 					ConfigProvider.layer(
 						ConfigProvider.fromUnknown({
 							BLOB_BASE_URL: 'https://test.public.blob.vercel-storage.com',
+						})
+					)
+				)
+			)
+		}
+	)
+
+	it.effect(
+		'wires github reads through fetch and the release download URL',
+		() => {
+			const requests: string[] = []
+			const fetchStub = Object.assign(
+				async (input: string | URL | Request) => {
+					requests.push(input instanceof Request ? input.url : String(input))
+
+					return new Response('{"count":3}')
+				},
+				{ preconnect: () => undefined }
+			)
+
+			return Effect.gen(function* () {
+				const storage = yield* JsonStorage
+
+				expect(yield* storage.readText('days/2026-10-03.json')).toEqual(
+					Option.some('{"count":3}')
+				)
+				expect(requests).toEqual([
+					'https://github.com/Mnigos/merged-data/releases/download/days-2026-10/2026-10-03.json',
+				])
+			}).pipe(
+				Effect.provide(
+					toStorageLayer({
+						storage: 'github',
+						dataDirectory: '/unused-local-directory',
+					})
+				),
+				Effect.provide(platformLayer),
+				Effect.provideService(FetchHttpClient.Fetch, fetchStub),
+				Effect.provide(
+					ConfigProvider.layer(
+						ConfigProvider.fromUnknown({
+							DATA_REPOSITORY: 'Mnigos/merged-data',
 						})
 					)
 				)

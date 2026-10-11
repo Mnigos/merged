@@ -15,6 +15,7 @@ const argsSchema = Schema.Struct({
 	season: seasonIdSchema,
 	storage: storageKindSchema,
 	data: Schema.NonEmptyString,
+	candidatesOnly: Schema.Boolean,
 })
 
 const readArgs = Effect.gen(function* () {
@@ -23,6 +24,7 @@ const readArgs = Effect.gen(function* () {
 			season: { type: 'string' },
 			storage: STORAGE_OPTION,
 			data: { type: 'string', default: 'data' },
+			'candidates-only': { type: 'boolean', default: false },
 		},
 	})
 	const now = new Date(yield* Clock.currentTimeMillis)
@@ -31,6 +33,7 @@ const readArgs = Effect.gen(function* () {
 		season: values.season ?? seasonIdOf(now),
 		storage: values.storage,
 		data: values.data,
+		candidatesOnly: values['candidates-only'],
 	})
 })
 
@@ -39,7 +42,9 @@ const program = Effect.gen(function* () {
 	const report = yield* Effect.gen(function* () {
 		const buildSeason = yield* BuildSeason
 
-		return yield* buildSeason.run(args.season)
+		return yield* buildSeason.run(args.season, {
+			publish: args.candidatesOnly ? 'candidatesOnly' : 'all',
+		})
 	}).pipe(
 		Effect.provide(
 			rankingLayer.pipe(

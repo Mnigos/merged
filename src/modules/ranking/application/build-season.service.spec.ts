@@ -434,4 +434,74 @@ describe('BuildSeason', () => {
 			)
 		}
 	)
+
+	it.effect(
+		'writes only the candidates with publish candidatesOnly and reports it',
+		() => {
+			const files = new RecordingFiles()
+			for (const [path, text] of seededFiles()) files.set(path, text)
+			files.writes.length = 0
+			const indexBefore = files.get('seasons/index.json')
+
+			return Effect.gen(function* () {
+				yield* TestClock.setTime(NOW)
+				const report = yield* (yield* BuildSeason).run(seasonId, {
+					publish: 'candidatesOnly',
+				})
+
+				expect(report).toMatchObject({
+					published: 'candidatesOnly',
+					status: 'provisional',
+					missingDays: ['2026-10-02'],
+					contributors: 4,
+					candidates: { contributors: 4, repositories: 3, pullRequests: 8 },
+					filesWritten: 1,
+				})
+				expect(files.writes).toEqual(['seasons/2026-10/candidates.json'])
+				expect(report.bytesWritten).toBe(
+					Buffer.byteLength(files.get('seasons/2026-10/candidates.json') ?? '')
+				)
+				expect(files.get('seasons/index.json')).toBe(indexBefore)
+			}).pipe(Effect.provide(buildLayer(files, enrichment)))
+		}
+	)
+
+	it.effect.each([undefined, 'all'] as const)(
+		'publishes every file with publish %s and reports all',
+		publish => {
+			const files = seededFiles()
+
+			return Effect.gen(function* () {
+				yield* TestClock.setTime(NOW)
+				const buildSeason = yield* BuildSeason
+				const candidatesOnly = yield* buildSeason.run(seasonId, {
+					publish: 'candidatesOnly',
+				})
+				const candidatesBefore = files.get('seasons/2026-10/candidates.json')
+				const all = yield* buildSeason.run(seasonId, { publish })
+
+				expect(all.published).toBe('all')
+				expect(all.filesWritten).toBe(1 + 3 + SHARD_COUNT + 1)
+				expect(all.candidates).toEqual(candidatesOnly.candidates)
+				expect(all.top).toEqual(candidatesOnly.top)
+				expect(files.get('seasons/2026-10/candidates.json')).toBe(
+					candidatesBefore
+				)
+				expect(
+					[...files.keys()]
+						.filter(path => path.startsWith('seasons/'))
+						.toSorted()
+				).toEqual(
+					[
+						'seasons/2026-10/candidates.json',
+						...SHARD_KEYS.map(key => `seasons/2026-10/shards/${key}.json`),
+						'seasons/2026-10/tabs/global.json',
+						'seasons/2026-10/tabs/poland.json',
+						'seasons/2026-10/tabs/repositories.json',
+						'seasons/index.json',
+					].toSorted()
+				)
+			}).pipe(Effect.provide(buildLayer(files, enrichment)))
+		}
+	)
 })
