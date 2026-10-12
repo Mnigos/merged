@@ -8,9 +8,9 @@ import {
 import { TestClock } from 'effect/testing'
 import {
 	GITHUB_GRAPHQL_URL,
-	githubGraphqlHttpLayer,
 	MIN_REMAINING_POINTS,
 	REQUEST_RETRIES,
+	toGithubGraphqlHttpLayer,
 } from './github-graphql-http'
 import { GitHubGraphql } from './github-graphql.port'
 import { DEFAULT_RATE_LIMIT_WAIT } from './rate-limit-wait'
@@ -33,7 +33,10 @@ const okBody = (remaining = 4000, data: Record<string, unknown> = {}) => ({
 	},
 })
 
-const graphqlWith = (responses: readonly ScriptedResponse[]) => {
+const graphqlWith = (
+	responses: readonly ScriptedResponse[],
+	concurrency = 1
+) => {
 	const requests: HttpClientRequest.HttpClientRequest[] = []
 	const client = HttpClient.make(request =>
 		Effect.gen(function* () {
@@ -52,7 +55,7 @@ const graphqlWith = (responses: readonly ScriptedResponse[]) => {
 			)
 		})
 	)
-	const layer = githubGraphqlHttpLayer.pipe(
+	const layer = toGithubGraphqlHttpLayer({ concurrency }).pipe(
 		Layer.provide(
 			Layer.mergeAll(
 				Layer.succeed(HttpClient.HttpClient, client),
@@ -126,6 +129,20 @@ describe('githubGraphqlHttpLayer', () => {
 			yield* TestClock.adjust('799 millis')
 			expect(requests).toHaveLength(1)
 			yield* TestClock.adjust('402 millis')
+
+			expect(yield* Fiber.join(fiber)).toMatchObject({ errors: [] })
+			expect(requests).toHaveLength(2)
+		}).pipe(Effect.provide(layer))
+	})
+
+	it.effect('retries a 200 whose body is not a GraphQL response', () => {
+		const { requests, layer } = graphqlWith([
+			{ body: '<!DOCTYPE html><title>Unicorn!</title>' },
+		])
+
+		return Effect.gen(function* () {
+			const fiber = yield* Effect.forkChild(query())
+			yield* TestClock.adjust('1201 millis')
 
 			expect(yield* Fiber.join(fiber)).toMatchObject({ errors: [] })
 			expect(requests).toHaveLength(2)
@@ -298,6 +315,26 @@ describe('githubGraphqlHttpLayer', () => {
 			}).pipe(Effect.provide(layer))
 		}
 	)
+
+	it.effect('runs up to `concurrency` queries at the same time', () => {
+		const { requests, layer } = graphqlWith(
+			Array.from({ length: 3 }, () => ({ delay: '10 seconds' })),
+			2
+		)
+
+		return Effect.gen(function* () {
+			const fibers = yield* Effect.forEach([1, 2, 3], id =>
+				Effect.forkChild(query({ id }))
+			)
+			yield* TestClock.adjust('1 millis')
+			expect(requests).toHaveLength(2)
+
+			yield* TestClock.adjust('10 seconds')
+			expect(requests).toHaveLength(3)
+			yield* TestClock.adjust('10 seconds')
+			yield* Fiber.joinAll(fibers)
+		}).pipe(Effect.provide(layer))
+	})
 
 	it.effect(
 		'keeps the authorization token out of ordinary status errors',

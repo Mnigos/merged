@@ -54,8 +54,8 @@ export const MethodSection = () => (
 				<div>
 					<dt>The season</dt>
 					<dd>
-						A calendar month in UTC, recomputed daily from GH Archive. Ranks are
-						provisional until the month closes.
+						A calendar month in UTC, recomputed daily from GitHub data. Ranks
+						are provisional until the month closes.
 					</dd>
 				</div>
 			</dl>

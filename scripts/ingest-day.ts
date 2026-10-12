@@ -6,7 +6,11 @@ import {
 	IngestDay,
 } from '@modules/ingest/application/ingest-day.service'
 import type { IngestMetrics } from '@modules/ingest/application/ingest-metrics'
-import { ingestLayer } from '@modules/ingest/ingest.layer'
+import { toIngestLayer } from '@modules/ingest/ingest.layer'
+import {
+	ingestSourceConfig,
+	ingestSourceKindSchema,
+} from '@shared/config/ingest-source'
 import { isoDateSchema } from '@shared/schema/iso-date'
 import { Console, Effect, Layer, Option, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
@@ -23,6 +27,7 @@ import {
 const argsSchema = Schema.Struct({
 	date: isoDateSchema,
 	concurrency: Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(1))),
+	source: ingestSourceKindSchema,
 	storage: storageKindSchema,
 	out: Schema.NonEmptyString,
 	skipExisting: Schema.Boolean,
@@ -34,6 +39,7 @@ const readArgs = Effect.suspend(() => {
 			date: { type: 'string' },
 			hours: { type: 'string' },
 			concurrency: { type: 'string' },
+			source: { type: 'string' },
 			storage: STORAGE_OPTION,
 			out: { type: 'string', default: 'data' },
 			'skip-existing': { type: 'boolean', default: false },
@@ -46,6 +52,7 @@ const readArgs = Effect.suspend(() => {
 		const args = yield* Schema.decodeUnknownEffect(argsSchema)({
 			date: values.date,
 			concurrency: Number(values.concurrency ?? DEFAULT_CONCURRENCY),
+			source: values.source ?? (yield* ingestSourceConfig),
 			storage: values.storage,
 			out: values.out,
 			skipExisting: values['skip-existing'],
@@ -82,7 +89,7 @@ const program = Effect.gen(function* () {
 		)
 	}).pipe(
 		Effect.provide(
-			ingestLayer.pipe(
+			toIngestLayer(args.source).pipe(
 				Layer.provide(
 					Layer.mergeAll(
 						toStorageLayer({ storage: args.storage, dataDirectory: args.out }),

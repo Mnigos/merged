@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-TanStack Start (React 19), Tailwind 4, TypeScript 7, Effect 4 RC for the data pipeline, deployed on Vercel. Data comes from GH Archive through a daily GitHub Action into GitHub Release assets as JSON (Vercel Blob until 2026-10, see ADR 0005). No database, no accounts. Confirmed by the user during planning; see docs/plan.html.
+TanStack Start (React 19), Tailwind 4, TypeScript 7, Effect 4 RC for the data pipeline, deployed on Vercel. Data comes from the GitHub search API (formerly GH Archive through the OpenDigger mirror, still available; see ADR 0006) through a daily GitHub Action into GitHub Release assets as JSON (Vercel Blob until 2026-10, see ADR 0005). No database, no accounts. Confirmed by the user during planning; see docs/plan.html.
 
 ## Users
 

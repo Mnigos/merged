@@ -8,7 +8,7 @@ import { jsonDayPartStoreLayer } from '../infrastructure/json-day-part-store'
 import { jsonDayStoreLayer } from '../infrastructure/json-day-store'
 import hourZero from '../testing/fixtures/archive-hour-0.jsonl?raw'
 import hourOne from '../testing/fixtures/archive-hour-1.jsonl?raw'
-import { inMemoryArchiveSourceLayer } from '../testing/in-memory-archive-source'
+import { inMemoryArchiveIngestSourceLayer } from '../testing/in-memory-archive-source'
 import { DayPartStore } from './day-part-store.port'
 import { DayStore } from './day-store.port'
 import { IngestDay } from './ingest-day.service'
@@ -108,7 +108,7 @@ describe('MergeDayParts', () => {
 					Layer.mergeAll(IngestDay.layer, MergeDayParts.layer).pipe(
 						Layer.provideMerge(
 							Layer.mergeAll(
-								inMemoryArchiveSourceLayer(
+								inMemoryArchiveIngestSourceLayer(
 									new Map([
 										[0, hourZero],
 										[1, hourOne],
