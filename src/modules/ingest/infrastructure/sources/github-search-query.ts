@@ -1,7 +1,12 @@
 import { isBot } from '@shared/github/bots'
 import { RATE_LIMIT_FIELD } from '@shared/github/github-graphql-rate-limit'
+import { GitHubGraphqlError } from '@shared/github/github-graphql.error'
+import type {
+	GraphqlError,
+	GraphqlResponse,
+} from '@shared/github/github-graphql.port'
 import { githubLoginSchema } from '@shared/schema/github-login'
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import type { HourEvents } from '../../application/ingest-source.port'
 import { classifyMerge, type MergeEvent } from '../../domain/merge-event'
 
@@ -42,7 +47,35 @@ export const searchPageSchema = Schema.Struct({
 })
 export type SearchPage = typeof searchPageSchema.Type
 
-export const decodeSearchPage = Schema.decodeUnknownEffect(searchPageSchema)
+const decodeSearchPage = Schema.decodeUnknownEffect(searchPageSchema)
+
+/** An error about one result, `path: ['search', 'nodes', <index>, …]`, such as a `NOT_FOUND` repository: that node is `null` and the rest of the page holds. */
+const isNodeError = ({ path }: GraphqlError) =>
+	path?.[0] === 'search' && path[1] === 'nodes' && typeof path[2] === 'number'
+
+/**
+ * The search page of a response. Any error that is not about a single node
+ * (a timeout or an internal error, which may come with partial data) fails
+ * the page retryably; with only node errors the page is kept and those nodes
+ * stay `null`. `data` that does not decode fails without retry.
+ */
+export function decodeSearchResponse(response: GraphqlResponse) {
+	const pageErrors = response.errors.filter(error => !isNodeError(error))
+	if (pageErrors.length > 0)
+		return Effect.fail(
+			new GitHubGraphqlError({
+				message: `GitHub search answered errors: ${pageErrors.map(error => error.message).join('; ')}`,
+				retryable: true,
+			})
+		)
+
+	return decodeSearchPage(response.data).pipe(
+		Effect.mapError(
+			error =>
+				new GitHubGraphqlError({ message: error.message, retryable: false })
+		)
+	)
+}
 
 interface SearchHourInput {
 	/** Nodes of every page of the hour's windows, repeats included. */
