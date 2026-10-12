@@ -32,20 +32,20 @@ Every script takes `--storage local|github|blob` (default `local`). `local` read
 
 ## GitHub Actions
 
-The OpenDigger mirror serves each client IP at about 0.5 MB/s, whatever the number of connections, so one runner needs about 4.5 hours for a day (about 8 GB). Each Actions job gets its own IP, so both workflows ingest a day as four day parts in parallel and publish in a second stage:
+The OpenDigger mirror serves each client IP at about 0.5 MB/s, whatever the number of connections, so one runner needs about 4.5 hours for a day (about 8 GB). Each Actions job gets its own IP, so both workflows ingest a day as 24 one-hour day parts in parallel and publish in a second stage:
 
 ```
-prepare   the day (pipeline.yml: input or yesterday) or the days (backfill.yml: from..to, at most 20)
-ingest    matrix date × part 0-1 … 22-23; max-parallel 20, fail-fast off, 150 min, contents: read
-          ingest-day --date <d> --hours <part> --part --out data --storage local --concurrency 6
+prepare   the day (pipeline.yml: input or yesterday) or the days (backfill.yml: from..to, at most 10)
+ingest    matrix date × part 0-0 … 23-23; max-parallel 20, fail-fast off, 300 min, contents: read
+          ingest-day --date <d> --hours <part> --part --out data --storage local --concurrency 1
           → artifact day-<d>-<part> = data/days/<d>.part-<part>.json, kept 3 days
 publish   needs every ingest job; contents: write, concurrency group pipeline, 120 min
           download every day-* artifact into data/days
-          merge-day --date <d> --parts 0-1,…,22-23 --storage github --from-directory data   (each day)
+          merge-day --date <d> --parts 0-0,1-1,…,23-23 --storage github --from-directory data   (each day)
           pipeline.ts --storage github --date <last day> [--season]   (ingest skipped: the day exists)
 ```
 
-`.github/workflows/pipeline.yml` runs daily at 06:00 UTC and on manual dispatch (optional `date` and `season`). `.github/workflows/backfill.yml` is manual (`from`, `to`, optional `season`) and refuses ranges over 20 days (80 ingest jobs). A failed part blocks `publish`; "Re-run failed jobs" reruns only the failed parts and then publishes, while the other artifacts stay. Only `publish` is in the `pipeline` concurrency group, so two runs never write releases at the same time; ingest jobs only read the mirror. `ARCHIVE_BASE_URL` comes from the repository variable `vars.ARCHIVE_BASE_URL` when it is set. `publish` sets `DATA_REPOSITORY: ${{ github.repository }}` and `GITHUB_TOKEN` to the `GH_PAT` secret when present, else the workflow token, for its write steps only; an ordinary daily run makes about 424 content-creating REST requests (see ADR 0005); a classic `GH_PAT` with `public_repo` is recommended for the first of a month (about 850) and backfills.
+`.github/workflows/pipeline.yml` runs daily at 06:00 UTC and on manual dispatch (optional `date` and `season`). `.github/workflows/backfill.yml` is manual (`from`, `to`, optional `season`) and refuses ranges over 10 days (240 ingest jobs, under GitHub's limit of 256 jobs per matrix). A failed part blocks `publish`; "Re-run failed jobs" reruns only the failed parts and then publishes, while the other artifacts stay. Only `publish` is in the `pipeline` concurrency group, so two runs never write releases at the same time; ingest jobs only read the mirror. `ARCHIVE_BASE_URL` comes from the repository variable `vars.ARCHIVE_BASE_URL` when it is set. `publish` sets `DATA_REPOSITORY: ${{ github.repository }}` and `GITHUB_TOKEN` to the `GH_PAT` secret when present, else the workflow token, for its write steps only; an ordinary daily run makes about 424 content-creating REST requests (see ADR 0005); a classic `GH_PAT` with `public_repo` is recommended for the first of a month (about 850) and backfills.
 
 ## pipeline
 
@@ -94,7 +94,7 @@ It prints per-hour and day metrics (bytes, lines, pre-filtered lines, decoded ev
 ## merge-day
 
 ```sh
-bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-1,…,22-23              # data/days/… → data/days/2026-10-03.json
+bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-0,1-1,…,23-23          # data/days/… → data/days/2026-10-03.json
 bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-11,12-23 --from-directory parts --storage github
 ```
 

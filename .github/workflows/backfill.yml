@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       from:
-        description: First UTC day to ingest, YYYY-MM-DD; at most 20 days per run
+        description: First UTC day to ingest, YYYY-MM-DD; at most 10 days per run
         required: true
         type: string
       to:
@@ -46,8 +46,8 @@ jobs:
           day="$INPUT_FROM"
           while [[ ! "$day" > "$INPUT_TO" ]]; do
             dates+=("$day")
-            if [ "${#dates[@]}" -gt 20 ]; then
-              echo "::error::$INPUT_FROM..$INPUT_TO is more than 20 days; split it into several runs"
+            if [ "${#dates[@]}" -gt 10 ]; then
+              echo "::error::$INPUT_FROM..$INPUT_TO is more than 10 days; split it into several runs"
               exit 1
             fi
             day="$(date -u -d "$day + 1 day" +%F)"
@@ -68,18 +68,30 @@ jobs:
         date: ${{ fromJSON(needs.prepare.outputs.dates) }}
         part:
           [
-            '0-1',
-            '2-3',
-            '4-5',
-            '6-7',
-            '8-9',
-            '10-11',
-            '12-13',
-            '14-15',
-            '16-17',
-            '18-19',
-            '20-21',
-            '22-23',
+            '0-0',
+            '1-1',
+            '2-2',
+            '3-3',
+            '4-4',
+            '5-5',
+            '6-6',
+            '7-7',
+            '8-8',
+            '9-9',
+            '10-10',
+            '11-11',
+            '12-12',
+            '13-13',
+            '14-14',
+            '15-15',
+            '16-16',
+            '17-17',
+            '18-18',
+            '19-19',
+            '20-20',
+            '21-21',
+            '22-22',
+            '23-23',
           ]
     env:
       DATE: ${{ matrix.date }}

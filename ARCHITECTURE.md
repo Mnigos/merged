@@ -22,11 +22,11 @@ merged is a modular monolith in one package ([ADR 0003](docs/decisions/0003-modu
 ```
 Pipeline (GitHub Actions .github/workflows/pipeline.yml, cron 06:00 UTC)
   prepare                              picks the day (input or yesterday)
-  ingest × 12 parts (contents: read)    one runner (own IP) per 6 hours
-    ingest-day --hours 0-5 --part      days/<date>.part-0-5.json, uploaded as
-                                       artifact day-<date>-0-5
+  ingest × 24 parts (contents: read)   one runner (own IP) per hour
+    ingest-day --hours 0-0 --part      days/<date>.part-0-0.json, uploaded as
+                                       artifact day-<date>-0-0
   publish (contents: write, concurrency group pipeline)
-    merge-day --storage github         downloads the 4 artifacts, merges them,
+    merge-day --storage github         downloads the 24 artifacts, merges them,
                                        publishes days/<date>.json
     scripts/pipeline.ts --storage github one process, write-through cache over
                                        release assets of this repository
@@ -111,7 +111,7 @@ Modules build typed stores on top of `JsonStorage` in their own `infrastructure/
 
 `scripts/ingest-day.ts` runs `IngestDay` (`ingest/application/ingest-day.service.ts`) over the `ArchiveSource` and `DayStore` ports. The official GH Archive feed has lost most events since early 2026, so the adapter (`infrastructure/gh-archive-http-source.ts`) reads the same hourly files from the OpenDigger mirror `https://gharchive.open-digger.cn` (`ARCHIVE_BASE_URL` overrides it); an hour is 300–650 MB gzipped and a day about 9.5 GB. Each hour streams through gunzip and line splitting and is never held in memory; a request is retried with backoff, and a body that breaks off resumes with an HTTP `Range` request from the last byte read; a substring check drops lines without a `PullRequestEvent` or `WatchEvent` marker before JSON parsing, Schema decodes the rest, invalid or irrelevant lines are counted and skipped, and bots are excluded. Hours run concurrently (`DEFAULT_CONCURRENCY`, 4); the day's events become one **Daily aggregate** of about 25 MB.
 
-The mirror serves each client IP at about 0.5 MB/s however many connections it opens, so one runner needs about 4.5 hours for a day. The workflows therefore ingest a day as 24 **Day parts** of one hour on parallel runners, each with its own IP: `ingest-day --hours 0-1 --part` writes the aggregate of those hours through the `DayPartStore` port (`infrastructure/json-day-part-store.ts`, `days/<date>.part-<hours>.json`, local disk only; release asset paths accept only day files) instead of `DayStore`. `scripts/merge-day.ts` runs `MergeDayParts` (`application/merge-day-parts.service.ts`): it reads the parts the labels name (they must cover hours 0–23 exactly once), merges them with `mergeDailyAggregates` (`domain/daily-aggregate.ts`: rows, own-repo merges, stars and totals summed, merge authors recounted, a pull request number repeated in a row counted once, sorted like `aggregateDay`), and writes the day through `DayStore`, for the workflows to GitHub Releases.
+The mirror serves each client IP at about 0.5 MB/s however many connections it opens, so one runner needs about 4.5 hours for a day. The workflows therefore ingest a day as 24 **Day parts** of one hour on parallel runners, each with its own IP: `ingest-day --hours 0-0 --part` writes the aggregate of those hours through the `DayPartStore` port (`infrastructure/json-day-part-store.ts`, `days/<date>.part-<hours>.json`, local disk only; release asset paths accept only day files) instead of `DayStore`. `scripts/merge-day.ts` runs `MergeDayParts` (`application/merge-day-parts.service.ts`): it reads the parts the labels name (they must cover hours 0–23 exactly once), merges them with `mergeDailyAggregates` (`domain/daily-aggregate.ts`: rows, own-repo merges, stars and totals summed, merge authors recounted, a pull request number repeated in a row counted once, sorted like `aggregateDay`), and writes the day through `DayStore`, for the workflows to GitHub Releases.
 
 GH Archive trimmed pull request payloads in 2025: a merge is now `action: "merged"` with the author as `actor`, and the merger is absent. The decoder reads that format and the older `closed` plus `merged: true` format; for trimmed events an unknown merger counts as merged by someone else, and the aggregate keeps those pull request numbers so pass 2 can resolve the merger for candidates. Logins and repository names are lowercased; own-repo merges get only a per-author count.
 
