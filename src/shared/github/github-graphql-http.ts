@@ -60,22 +60,11 @@ const decodeRateLimit = Schema.decodeUnknownOption(
 const readBody = (response: HttpClientResponse.HttpClientResponse) =>
 	response.text.pipe(Effect.orElseSucceed(() => ''))
 
-/**
- * `GitHubGraphql` over HTTP with `GITHUB_TOKEN`. Queries run one at a time;
- * batching provides the throughput. A query is retried with exponential
- * backoff on 5xx, network errors and rate limits (after waiting for
- * `retry-after`, `x-ratelimit-reset`, or `DEFAULT_RATE_LIMIT_WAIT` for a 429
- * or a secondary-limit 403), never on 400, 401 or a permission 403. Error
- * messages never carry the token. When a response's
- * `rateLimit.remaining` drops below `MIN_REMAINING_POINTS`, the next query
- * waits until `resetAt`.
- */
-export const githubGraphqlHttpLayer = Layer.effect(
-	GitHubGraphql,
+const makeGithubGraphqlHttp = (concurrency: number) =>
 	Effect.gen(function* () {
 		const token = yield* githubTokenConfig
 		const client = yield* HttpClient.HttpClient
-		const semaphore = yield* Semaphore.make(1)
+		const semaphore = yield* Semaphore.make(concurrency)
 		const pausedUntil = yield* Ref.make(0)
 
 		const secret = Redacted.value(token)
@@ -131,7 +120,7 @@ export const githubGraphqlHttpLayer = Layer.effect(
 						new GitHubGraphqlError({
 							message: `GitHub GraphQL returned an unreadable body: ${redactSecrets(error.message, secret)}`,
 							status: response.status,
-							retryable: false,
+							retryable: true,
 						})
 				)
 			)
@@ -199,4 +188,28 @@ export const githubGraphqlHttpLayer = Layer.effect(
 
 		return { query }
 	})
-)
+
+export interface GithubGraphqlHttpOptions {
+	/** Queries in flight at once; the others wait for a free slot. */
+	readonly concurrency: number
+}
+
+/**
+ * `GitHubGraphql` over HTTP with `GITHUB_TOKEN`, at most `concurrency`
+ * queries in flight. A query is retried with exponential backoff on 5xx,
+ * network errors, unreadable (non-JSON) bodies and rate limits (after
+ * waiting for `retry-after`, `x-ratelimit-reset`, or
+ * `DEFAULT_RATE_LIMIT_WAIT` for a 429 or a secondary-limit 403), never on
+ * 400, 401 or a permission 403. Error messages never carry the token. When a
+ * response's `rateLimit.remaining` drops below `MIN_REMAINING_POINTS`, the
+ * next queries wait until `resetAt`.
+ */
+export const toGithubGraphqlHttpLayer = ({
+	concurrency,
+}: GithubGraphqlHttpOptions) =>
+	Layer.effect(GitHubGraphql, makeGithubGraphqlHttp(concurrency))
+
+/** `toGithubGraphqlHttpLayer` one query at a time; batching provides the throughput. */
+export const githubGraphqlHttpLayer = toGithubGraphqlHttpLayer({
+	concurrency: 1,
+})

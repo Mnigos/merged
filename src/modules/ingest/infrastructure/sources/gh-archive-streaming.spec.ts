@@ -5,11 +5,12 @@ import { isoDateSchema } from '@shared/schema/iso-date'
 import { Effect, Layer, Option } from 'effect'
 import { HttpClient, HttpClientResponse } from 'effect/http'
 import { vi } from 'vitest'
-import { DayStore } from '../application/day-store.port'
-import { IngestDay } from '../application/ingest-day.service'
-import type { DailyAggregate } from '../domain/daily-aggregate'
-import { inMemoryDayPartStoreLayer } from '../testing/in-memory-day-part-store'
-import { inMemoryDayStoreLayer } from '../testing/in-memory-day-store'
+import { DayStore } from '../../application/day-store.port'
+import { IngestDay } from '../../application/ingest-day.service'
+import type { DailyAggregate } from '../../domain/daily-aggregate'
+import { inMemoryDayPartStoreLayer } from '../../testing/in-memory-day-part-store'
+import { inMemoryDayStoreLayer } from '../../testing/in-memory-day-store'
+import { archiveIngestSourceLayer } from './archive-ingest-source'
 import { ghArchiveHttpSourceLayer } from './gh-archive-http-source'
 
 const date = isoDateSchema.make('2026-10-03')
@@ -63,7 +64,8 @@ function ingestText(text: string, chunkSize = 128) {
 			)
 		)
 	)
-	const sourceLayer = ghArchiveHttpSourceLayer.pipe(
+	const sourceLayer = archiveIngestSourceLayer.pipe(
+		Layer.provide(ghArchiveHttpSourceLayer),
 		Layer.provide(Layer.succeed(HttpClient.HttpClient, client))
 	)
 

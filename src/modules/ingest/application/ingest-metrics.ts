@@ -2,16 +2,9 @@ import type { IsoDate } from '@shared/schema/iso-date'
 import type { DailyAggregate } from '../domain/daily-aggregate'
 import type { MergeKind } from '../domain/merge-event'
 import type { StoredDay } from './day-store.port'
-import type { HourScan } from './hour-scan'
+import type { HourCounts, HourEvents } from './ingest-source.port'
 
-export interface ScanCounts {
-	readonly bytesDownloaded: number
-	readonly linesSeen: number
-	readonly linesPreFiltered: number
-	readonly eventsDecoded: number
-	readonly invalidLines: number
-	readonly ignoredEvents: number
-	readonly botEvents: number
+export interface ScanCounts extends HourCounts {
 	readonly merges: Readonly<Record<MergeKind, number>>
 	readonly mergesWithoutMerger: number
 	readonly starEvents: number
@@ -34,41 +27,34 @@ export interface IngestMetrics extends ScanCounts {
 
 interface HourMetricsInput {
 	readonly hour: number
-	readonly scan: HourScan
-	readonly bytesDownloaded: number
+	readonly events: HourEvents
 	readonly durationMs: number
 }
 
-/** Metrics of one scanned hour. */
+/** Metrics of one ingested hour. */
 export function toHourMetrics({
 	hour,
-	scan,
-	bytesDownloaded,
+	events,
 	durationMs,
 }: HourMetricsInput): HourMetrics {
 	const merges = { merged: 0, selfMerged: 0, ownRepo: 0 }
-	for (const merge of scan.merges) merges[merge.mergeKind]++
+	for (const merge of events.merges) merges[merge.mergeKind]++
 
 	return {
 		hour,
 		durationMs,
-		bytesDownloaded,
-		linesSeen: scan.linesSeen,
-		linesPreFiltered: scan.linesPreFiltered,
-		eventsDecoded: scan.eventsDecoded,
-		invalidLines: scan.invalidLines,
-		ignoredEvents: scan.ignoredEvents,
-		botEvents: scan.botEvents,
+		...events.counts,
 		merges,
-		mergesWithoutMerger: scan.merges.filter(merge => !merge.mergedBy).length,
-		starEvents: scan.stars.length,
+		mergesWithoutMerger: events.merges.filter(merge => !merge.mergedBy).length,
+		starEvents: events.stars.length,
 	}
 }
 
-/** Sums the counts of every scanned hour. */
+/** Sums the counts of every ingested hour. */
 export const sumScanCounts = (hours: readonly ScanCounts[]): ScanCounts =>
 	hours.reduce<ScanCounts>(
 		(total, hour) => ({
+			requests: total.requests + hour.requests,
 			bytesDownloaded: total.bytesDownloaded + hour.bytesDownloaded,
 			linesSeen: total.linesSeen + hour.linesSeen,
 			linesPreFiltered: total.linesPreFiltered + hour.linesPreFiltered,
@@ -85,6 +71,7 @@ export const sumScanCounts = (hours: readonly ScanCounts[]): ScanCounts =>
 			starEvents: total.starEvents + hour.starEvents,
 		}),
 		{
+			requests: 0,
 			bytesDownloaded: 0,
 			linesSeen: 0,
 			linesPreFiltered: 0,

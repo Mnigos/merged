@@ -2,6 +2,7 @@ import type { IsoDate } from '@shared/schema/iso-date'
 import { Effect, Layer, Stream } from 'effect'
 import { ArchiveSourceError } from '../application/archive-source.error'
 import { ArchiveSource } from '../application/archive-source.port'
+import { archiveIngestSourceLayer } from '../infrastructure/sources/archive-ingest-source'
 
 const encoder = new TextEncoder()
 
@@ -30,3 +31,11 @@ export const inMemoryArchiveSourceLayer = (
 			}
 		},
 	})
+
+/** Test `IngestSource` scanning the hours of `inMemoryArchiveSourceLayer`, as the archive source does. */
+export const inMemoryArchiveIngestSourceLayer = (
+	hours: ReadonlyMap<number, string>
+) =>
+	archiveIngestSourceLayer.pipe(
+		Layer.provide(inMemoryArchiveSourceLayer(hours))
+	)

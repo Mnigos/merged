@@ -14,6 +14,7 @@ export const printIngestMetrics = (metrics: IngestMetrics) =>
 		yield* Console.table(
 			metrics.hours.map(hour => ({
 				hour: hour.hour,
+				requests: hour.requests,
 				downloaded: megabytes(hour.bytesDownloaded),
 				lines: hour.linesSeen,
 				preFiltered: hour.linesPreFiltered,
@@ -26,6 +27,7 @@ export const printIngestMetrics = (metrics: IngestMetrics) =>
 		)
 		yield* Console.table({
 			date: metrics.date,
+			requests: metrics.requests,
 			downloaded: megabytes(metrics.bytesDownloaded),
 			linesSeen: metrics.linesSeen,
 			linesPreFiltered: metrics.linesPreFiltered,
