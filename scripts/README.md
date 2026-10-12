@@ -94,7 +94,7 @@ It prints per-hour and day metrics (bytes, lines, pre-filtered lines, decoded ev
 ## merge-day
 
 ```sh
-bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-0,1-1,…,23-23          # data/days/… → data/days/2026-10-03.json
+bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-5,6-11,12-17,18-23     # data/days/… → data/days/2026-10-03.json
 bun run scripts/merge-day.ts --date 2026-10-03 --parts 0-11,12-23 --from-directory parts --storage github
 ```
 
