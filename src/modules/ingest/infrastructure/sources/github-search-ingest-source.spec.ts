@@ -456,6 +456,106 @@ describe('toGithubSearchIngestSourceLayer', () => {
 		}
 	)
 
+	it.effect.each([
+		{ name: 'without a path', path: undefined },
+		{ name: 'on the search field', path: ['search'] },
+	])(
+		'retries a partial page with a page-level error $name, then reads it whole',
+		({ path }) => {
+			let failures = 1
+			const pullRequests = [merge(1, '2026-10-01T03:00:01Z')]
+			const { calls, layer } = sourceOver(
+				(_document, variables) => {
+					const page = toFakeSearchPage(pullRequests, variables)
+					if (
+						!String(variables.query).includes('03:00:00Z..') ||
+						failures === 0
+					)
+						return toFakeSearchResponse(page)
+					failures--
+
+					return {
+						...toFakeSearchResponse({ ...page, nodes: [null] }),
+						errors: [{ message: 'Something went wrong', path }],
+					}
+				},
+				{ concurrency: 1 }
+			)
+
+			return Effect.gen(function* () {
+				const fiber = yield* Effect.forkChild(readHour())
+				yield* TestClock.adjust('1 minute')
+				const events = yield* Fiber.join(fiber)
+
+				expect(events.merges.map(found => found.number)).toEqual([1])
+				expect(events.counts.ignoredEvents).toBe(0)
+				expect(calls).toHaveLength(61)
+			}).pipe(Effect.provide(layer))
+		}
+	)
+
+	it.effect(
+		'keeps a page whose only error is a NOT_FOUND on one node, counting that node as ignored',
+		() => {
+			const pullRequests = [merge(1, '2026-10-01T03:00:01Z')]
+			const { calls, layer } = sourceOver((_document, variables) => {
+				const page = toFakeSearchPage(pullRequests, variables)
+				if (!String(variables.query).includes('03:00:00Z..'))
+					return toFakeSearchResponse(page)
+
+				return {
+					...toFakeSearchResponse({ ...page, nodes: [...page.nodes, null] }),
+					errors: [
+						{
+							type: 'NOT_FOUND',
+							message: 'Could not resolve to a Repository',
+							path: ['search', 'nodes', 1, 'repository'],
+						},
+					],
+				}
+			})
+
+			return Effect.gen(function* () {
+				const events = yield* readHour()
+
+				expect(events.merges.map(found => found.number)).toEqual([1])
+				expect(events.counts).toMatchObject({
+					eventsDecoded: 2,
+					ignoredEvents: 1,
+				})
+				expect(calls).toHaveLength(60)
+			}).pipe(Effect.provide(layer))
+		}
+	)
+
+	it.effect('fails a window whose end cursor does not advance', () => {
+		const pullRequests = [merge(1, '2026-10-01T03:00:01Z')]
+		const { calls, layer } = sourceOver((_document, variables) => {
+			const page = toFakeSearchPage(pullRequests, variables)
+			if (!String(variables.query).includes('03:00:00Z..'))
+				return toFakeSearchResponse(page)
+
+			return toFakeSearchResponse({
+				...page,
+				pageInfo: { hasNextPage: true, endCursor: 'stuck' },
+			})
+		})
+
+		return Effect.gen(function* () {
+			const error = yield* Effect.flip(readHour())
+
+			expect(error).toMatchObject({ _tag: 'SearchSourceError', hour: 3 })
+			expect(error.message).toContain(
+				'2026-10-01T03:00:00Z..2026-10-01T03:00:59Z: cursor stuck did not advance'
+			)
+			expect(
+				calls
+					.filter(call => String(call.variables.query).includes('03:00:00Z..'))
+					.map(call => call.variables.after)
+			).toEqual([null, 'stuck'])
+		}).pipe(Effect.provide(layer))
+	})
+
 	it.effect(
 		'fails the hour after the bounded retries of a failing page',
 		() => {
