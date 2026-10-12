@@ -1,11 +1,10 @@
-import { GitHubGraphqlError } from '@shared/github/github-graphql.error'
 import { GitHubGraphql } from '@shared/github/github-graphql.port'
 import type { IsoDate } from '@shared/schema/iso-date'
 import { Config, Effect, Layer, Schedule, Schema } from 'effect'
 import { IngestSource } from '../../application/ingest-source.port'
 import { SearchSourceError } from '../../application/search-source.error'
 import {
-	decodeSearchPage,
+	decodeSearchResponse,
 	SEARCH_DOCUMENT,
 	type SearchPage,
 	type SearchPullRequest,
@@ -56,13 +55,6 @@ interface WindowResults {
 	readonly requests: number
 }
 
-/** A page whose `data` does not decode is retried only when GitHub also sent errors, such as a timeout. */
-const toPageError = (message: string, graphqlErrors: readonly string[]) =>
-	new GitHubGraphqlError({
-		message: [message, ...graphqlErrors].join('; '),
-		retryable: graphqlErrors.length > 0,
-	})
-
 /**
  * `IngestSource` over the GitHub search API: an hour is read as 60 one-minute
  * windows (`merged:<start>..<end>`), `concurrency` at a time, each paged
@@ -102,18 +94,7 @@ export const toGithubSearchIngestSourceLayer = (
 								after,
 							})
 							.pipe(
-								Effect.flatMap(response =>
-									decodeSearchPage(response.data).pipe(
-										Effect.mapError(error =>
-											toPageError(
-												error.message,
-												response.errors.map(
-													graphqlError => graphqlError.message
-												)
-											)
-										)
-									)
-								),
+								Effect.flatMap(decodeSearchResponse),
 								Effect.retry({
 									schedule: Schedule.exponential('2 seconds').pipe(
 										Schedule.jittered
@@ -128,12 +109,21 @@ export const toGithubSearchIngestSourceLayer = (
 						function* (window: SearchWindow, first: SearchPage) {
 							const results = [...first.search.nodes]
 							let page = first
+							let after: string | null = null
 							let requests = 1
 							while (
 								page.search.pageInfo.hasNextPage &&
 								page.search.pageInfo.endCursor !== null
 							) {
-								page = yield* fetchPage(window, page.search.pageInfo.endCursor)
+								if (page.search.pageInfo.endCursor === after)
+									return yield* Effect.fail(
+										toError(
+											window,
+											`cursor ${after} did not advance after page ${requests}, stopping instead of looping`
+										)
+									)
+								after = page.search.pageInfo.endCursor
+								page = yield* fetchPage(window, after)
 								results.push(...page.search.nodes)
 								requests++
 							}
