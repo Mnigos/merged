@@ -45,24 +45,25 @@ export const MethodologyArticle = () => (
 
 			<Section id="data" title="Where the data comes from">
 				<p>
-					Every public GitHub event lands in{' '}
+					Once a day at 06:00 UTC merged asks the GitHub search API for every
+					pull request merged into a public repository the previous day, one
+					minute at a time, and recomputes the season. Earlier days were read
+					from{' '}
 					<a
 						className="text-fg underline decoration-line-2 hover:decoration-fg-2"
 						href="https://www.gharchive.org"
 					>
 						GH Archive
-					</a>
-					, one file per hour. The official GH Archive feed has lost most events
-					since 2026, so merged counts come from{' '}
+					</a>{' '}
+					through{' '}
 					<a
 						className="text-fg underline decoration-line-2 hover:decoration-fg-2"
 						href="https://gharchive.open-digger.cn"
 					>
-						OpenDigger’s archive
-					</a>{' '}
-					of the same public events. Once a day at 06:00 UTC merged reads the
-					previous day’s 24 files, keeps merged pull requests and stars, and
-					recomputes the season. Nothing is read from private repositories.
+						OpenDigger’s mirror
+					</a>
+					, which also records stars and stays available. Nothing is read from
+					private repositories.
 				</p>
 			</Section>
 
@@ -169,15 +170,22 @@ export const MethodologyArticle = () => (
 			<Section id="limits" title="Known limits">
 				<ul className={LIST}>
 					<li>
-						A day counts only after GH Archive publishes it and the daily run
-						picks it up. Each season shows how many of its days are counted;
-						days that never arrive are skipped, not estimated.
+						A day counts only after the daily run reads it. Each season shows
+						how many of its days are counted; days that never arrive are
+						skipped, not estimated.
+					</li>
+					<li>
+						GitHub search reports who merged every pull request, but no stars,
+						so stars this season come only from days read from GH Archive;
+						GitHub’s star counts of the top candidates’ repositories still
+						apply.
 					</li>
 					<li>
 						Since 2025 GH Archive no longer records who merged a pull request.
-						merged asks GitHub for the merger of the top candidates only; for
-						everyone else a merge into someone else’s repository counts as
-						merged by someone else, so a self-merge there counts in full.
+						For days read from it, merged asks GitHub for the merger of the top
+						candidates only; for everyone else a merge into someone else’s
+						repository counts as merged by someone else, so a self-merge there
+						counts in full.
 					</li>
 					<li>
 						Names and locations come from the GitHub profiles of top candidates,

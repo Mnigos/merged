@@ -4,8 +4,8 @@ import { isoDateSchema } from '@shared/schema/iso-date'
 import { ConfigProvider, Effect, Fiber, Layer, Stream } from 'effect'
 import { HttpClient, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
-import { ArchiveSourceError } from '../application/archive-source.error'
-import { ArchiveSource } from '../application/archive-source.port'
+import { ArchiveSourceError } from '../../application/archive-source.error'
+import { ArchiveSource } from '../../application/archive-source.port'
 import {
 	BODY_RESUMES,
 	DEFAULT_ARCHIVE_BASE_URL,

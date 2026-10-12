@@ -2,6 +2,7 @@ import { describe, expect, it } from '@effect/vitest'
 import { isoDateSchema } from '@shared/schema/iso-date'
 import { Effect, Layer, Option, Stream } from 'effect'
 import { vi } from 'vitest'
+import { archiveIngestSourceLayer } from '../infrastructure/sources/archive-ingest-source'
 import hourZero from '../testing/fixtures/archive-hour-0.jsonl?raw'
 import hourOne from '../testing/fixtures/archive-hour-1.jsonl?raw'
 import { inMemoryArchiveSourceLayer } from '../testing/in-memory-archive-source'
@@ -78,7 +79,7 @@ describe('IngestDay failed hour', () => {
 					IngestDay.layer.pipe(
 						Layer.provideMerge(
 							Layer.mergeAll(
-								sourceLayer,
+								archiveIngestSourceLayer.pipe(Layer.provide(sourceLayer)),
 								inMemoryDayStoreLayer,
 								inMemoryDayPartStoreLayer
 							)
