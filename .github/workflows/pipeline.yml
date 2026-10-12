@@ -116,6 +116,8 @@ jobs:
       DATE: ${{ needs.prepare.outputs.date }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: oven-sh/setup-bun@v2
         with:
