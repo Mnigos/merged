@@ -3,7 +3,7 @@ import { isoDateSchema } from '@shared/schema/iso-date'
 import { Effect, Layer, Option } from 'effect'
 import hourZero from '../testing/fixtures/archive-hour-0.jsonl?raw'
 import hourOne from '../testing/fixtures/archive-hour-1.jsonl?raw'
-import { inMemoryArchiveSourceLayer } from '../testing/in-memory-archive-source'
+import { inMemoryArchiveIngestSourceLayer } from '../testing/in-memory-archive-source'
 import { inMemoryDayPartStoreLayer } from '../testing/in-memory-day-part-store'
 import { inMemoryDayStoreLayer } from '../testing/in-memory-day-store'
 import { DayPartStore } from './day-part-store.port'
@@ -15,7 +15,7 @@ const date = isoDateSchema.make('2026-10-03')
 const testLayer = IngestDay.layer.pipe(
 	Layer.provideMerge(
 		Layer.mergeAll(
-			inMemoryArchiveSourceLayer(
+			inMemoryArchiveIngestSourceLayer(
 				new Map([
 					[0, hourZero],
 					[1, hourOne],
@@ -220,7 +220,9 @@ describe('IngestDay', () => {
 					IngestDay.layer.pipe(
 						Layer.provideMerge(
 							Layer.mergeAll(
-								inMemoryArchiveSourceLayer(new Map([[0, hourZero + hourOne]])),
+								inMemoryArchiveIngestSourceLayer(
+									new Map([[0, hourZero + hourOne]])
+								),
 								inMemoryDayStoreLayer,
 								inMemoryDayPartStoreLayer
 							)

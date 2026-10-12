@@ -2,12 +2,17 @@ import { parseArgs } from 'node:util'
 import { BunRuntime, BunServices } from '@effect/platform-bun'
 import { DailyAggregates } from '@modules/ingest/application/daily-aggregates.service'
 import { IngestDay } from '@modules/ingest/application/ingest-day.service'
-import { ingestLayer } from '@modules/ingest/ingest.layer'
+import { toIngestLayer } from '@modules/ingest/ingest.layer'
 import { Enrich } from '@modules/profiles/application/enrich.service'
 import { profilesLayer } from '@modules/profiles/profiles.layer'
 import { BuildSeason } from '@modules/ranking/application/build-season.service'
 import { Candidates } from '@modules/ranking/application/candidates.service'
 import { candidatesLayer, rankingLayer } from '@modules/ranking/ranking.layer'
+import {
+	ingestSourceConfig,
+	ingestSourceKindSchema,
+	type IngestSourceKind,
+} from '@shared/config/ingest-source'
 import { githubGraphqlHttpLayer } from '@shared/github/github-graphql-http'
 import { isoDateSchema, type IsoDate } from '@shared/schema/iso-date'
 import { seasonIdSchema, type SeasonId } from '@shared/schema/season-id'
@@ -31,6 +36,7 @@ const argsSchema = Schema.Struct({
 	from: isoDateSchema,
 	date: isoDateSchema,
 	season: seasonIdSchema,
+	source: ingestSourceKindSchema,
 	storage: storageKindSchema,
 	data: Schema.NonEmptyString,
 	skipExisting: Schema.Boolean,
@@ -42,6 +48,7 @@ const readArgs = Effect.gen(function* () {
 			date: { type: 'string' },
 			from: { type: 'string' },
 			season: { type: 'string' },
+			source: { type: 'string' },
 			storage: STORAGE_OPTION,
 			data: { type: 'string', default: 'data' },
 			'skip-existing': { type: 'boolean', default: true },
@@ -53,6 +60,7 @@ const readArgs = Effect.gen(function* () {
 		from: values.from ?? date,
 		date,
 		season: values.season ?? date.slice(0, 7),
+		source: values.source ?? (yield* ingestSourceConfig),
 		storage: values.storage,
 		data: values.data,
 		skipExisting: values['skip-existing'],
@@ -105,14 +113,18 @@ function rankSeason(season: SeasonId) {
 	})
 }
 
+interface PipelineLayerOptions extends StorageLayerOptions {
+	readonly source: IngestSourceKind
+}
+
 /**
  * Every module over one write-through storage, so each step reads what the
  * previous steps wrote even while a release asset is being renamed or
  * Blob's CDN serves an older version.
  */
-const toPipelineLayer = (storage: StorageLayerOptions) =>
+const toPipelineLayer = ({ source, ...storage }: PipelineLayerOptions) =>
 	Layer.mergeAll(
-		ingestLayer,
+		toIngestLayer(source),
 		rankingLayer,
 		candidatesLayer,
 		profilesLayer
@@ -141,7 +153,11 @@ const program = Effect.gen(function* () {
 		for (const season of seasons) yield* rankSeason(season)
 	}).pipe(
 		Effect.provide(
-			toPipelineLayer({ storage: args.storage, dataDirectory: args.data })
+			toPipelineLayer({
+				source: args.source,
+				storage: args.storage,
+				dataDirectory: args.data,
+			})
 		)
 	)
 })

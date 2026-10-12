@@ -63,7 +63,7 @@ jobs:
       contents: read
     strategy:
       fail-fast: false
-      max-parallel: 20
+      max-parallel: 1
       matrix:
         date: ${{ fromJSON(needs.prepare.outputs.dates) }}
         part:
@@ -96,6 +96,7 @@ jobs:
     env:
       DATE: ${{ matrix.date }}
       PART: ${{ matrix.part }}
+      INGEST_SOURCE: search
     steps:
       - uses: actions/checkout@v4
 
@@ -112,6 +113,8 @@ jobs:
         run: echo "ARCHIVE_BASE_URL=$ARCHIVE_BASE_URL" >> "$GITHUB_ENV"
 
       - name: Ingest the day part
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: bun run scripts/ingest-day.ts --date "$DATE" --hours "$PART" --part --out data --storage local --concurrency 1
 
       - uses: actions/upload-artifact@v4

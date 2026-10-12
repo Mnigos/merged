@@ -1,8 +1,8 @@
 import type { IsoDate } from '@shared/schema/iso-date'
 import { Config, Effect, Layer, Schedule, Stream } from 'effect'
 import { HttpClient, HttpClientError, HttpClientResponse } from 'effect/http'
-import { ArchiveSourceError } from '../application/archive-source.error'
-import { ArchiveSource } from '../application/archive-source.port'
+import { ArchiveSourceError } from '../../application/archive-source.error'
+import { ArchiveSource } from '../../application/archive-source.port'
 
 /**
  * OpenDigger's mirror of the hourly GH Archive files, same file names. The
