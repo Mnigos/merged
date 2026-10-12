@@ -4,6 +4,7 @@ import { TestClock } from 'effect/testing'
 import {
 	cachedJsonStorageLayer,
 	type CachedJsonStorageOptions,
+	READ_CACHE_MAX_BYTES,
 } from './cached-json-storage'
 import { JsonStorage } from './json-storage.port'
 import { StorageError } from './storage.error'
@@ -219,4 +220,89 @@ describe('cachedJsonStorageLayer', () => {
 			}).pipe(Effect.provide(layer))
 		}
 	)
+
+	it('caps the cache at 64 MB by default', () => {
+		expect(READ_CACHE_MAX_BYTES).toBe(64 * 1024 * 1024)
+	})
+
+	it.effect('evicts the least recently used paths beyond the byte cap', () => {
+		const files = new Map([
+			['a.json', 'aaaa'],
+			['b.json', 'żż'],
+			['c.json', 'cccc'],
+		])
+		const { reads, layer } = countingStorageWith(files, { maxBytes: 8 })
+
+		return Effect.gen(function* () {
+			const storage = yield* JsonStorage
+
+			yield* storage.readText('a.json')
+			yield* storage.readText('b.json')
+			yield* storage.readText('a.json')
+			yield* storage.readText('c.json')
+			yield* storage.readText('a.json')
+			yield* storage.readText('b.json')
+			expect(reads).toEqual(['a.json', 'b.json', 'c.json', 'b.json'])
+		}).pipe(Effect.provide(layer))
+	})
+
+	it.effect(
+		'serves an oversized text without retaining it or evicting other entries',
+		() => {
+			const files = new Map([
+				['big.json', 'x'.repeat(9)],
+				['small.json', 's'],
+			])
+			const { reads, layer } = countingStorageWith(files, { maxBytes: 8 })
+
+			return Effect.gen(function* () {
+				const storage = yield* JsonStorage
+
+				yield* storage.readText('small.json')
+				expect(yield* storage.readText('big.json')).toEqual(
+					Option.some('x'.repeat(9))
+				)
+				yield* storage.readText('big.json')
+				yield* storage.readText('small.json')
+				expect(reads).toEqual(['small.json', 'big.json', 'big.json'])
+			}).pipe(Effect.provide(layer))
+		}
+	)
+
+	it.effect('retains a single UTF-8 entry exactly at the byte cap', () => {
+		const { reads, layer } = countingStorageWith(new Map([[path, 'żółw']]), {
+			maxBytes: 7,
+		})
+
+		return Effect.gen(function* () {
+			const storage = yield* JsonStorage
+
+			expect(yield* storage.readText(path)).toEqual(Option.some('żółw'))
+			expect(yield* storage.readText(path)).toEqual(Option.some('żółw'))
+			expect(reads).toEqual([path])
+		}).pipe(Effect.provide(layer))
+	})
+
+	it.effect('frees the bytes of expired and replaced entries', () => {
+		const files = new Map([
+			['a.json', 'aaaa'],
+			['b.json', 'bbbb'],
+			['c.json', 'cccc'],
+		])
+		const { reads, layer } = countingStorageWith(files, { maxBytes: 8 })
+
+		return Effect.gen(function* () {
+			const storage = yield* JsonStorage
+
+			yield* storage.readText('a.json')
+			yield* storage.writeText('a.json', 'aaaa')
+			yield* storage.writeText('a.json', 'aaaa')
+			yield* storage.readText('b.json')
+			yield* TestClock.adjust('60 seconds')
+			yield* storage.readText('c.json')
+			yield* storage.readText('a.json')
+			yield* storage.readText('c.json')
+			expect(reads).toEqual(['a.json', 'b.json', 'c.json', 'a.json'])
+		}).pipe(Effect.provide(layer))
+	})
 })

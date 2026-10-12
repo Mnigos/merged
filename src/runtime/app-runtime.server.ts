@@ -6,19 +6,25 @@ import {
 	dataSourceConfig,
 } from '@shared/config/data-source'
 import { cachedJsonStorageLayer } from '@shared/storage/cached-json-storage'
+import { githubReleaseJsonStorageLayer } from '@shared/storage/github-release-json-storage'
 import { localFileJsonStorageLayer } from '@shared/storage/local-file-json-storage'
 import { vercelBlobJsonStorageLayer } from '@shared/storage/vercel-blob-json-storage'
 import { Effect, Layer, ManagedRuntime } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 
 /**
- * Read-only storage for the website: Vercel Blob by URL or files under
- * `DATA_DIR`, chosen by `DATA_SOURCE`, behind a 60 s read cache so a page
- * view does not refetch files that change once a day.
+ * Read-only storage for the website: GitHub Release assets or Vercel Blob by
+ * URL, or files under `DATA_DIR`, chosen by `DATA_SOURCE`, behind a 60 s read
+ * cache so a page view does not refetch files that change once a day.
  */
 const sourceStorageLayer = Layer.unwrap(
 	Effect.gen(function* () {
-		if ((yield* dataSourceConfig) === 'blob')
+		const source = yield* dataSourceConfig
+		if (source === 'github')
+			return githubReleaseJsonStorageLayer.pipe(
+				Layer.provide(FetchHttpClient.layer)
+			)
+		if (source === 'blob')
 			return vercelBlobJsonStorageLayer.pipe(
 				Layer.provide(FetchHttpClient.layer)
 			)

@@ -1,4 +1,5 @@
 import type { IngestMetrics } from '@modules/ingest/application/ingest-metrics'
+import type { MergedDayReport } from '@modules/ingest/application/merge-day-parts.service'
 import type { EnrichKindReport } from '@modules/profiles/application/enrich-kind'
 import type { EnrichReport } from '@modules/profiles/application/enrich-report'
 import type { BuildSeasonReport } from '@modules/ranking/application/build-season-report'
@@ -46,12 +47,31 @@ export const printIngestMetrics = (metrics: IngestMetrics) =>
 		})
 	})
 
+/** Prints the summary of a day merged from its parts. */
+export const printMergedDay = (report: MergedDayReport) =>
+	Console.table({
+		date: report.date,
+		parts: report.labels.join(', '),
+		merged: report.totals.merged,
+		selfMerged: report.totals.selfMerged,
+		ownRepo: report.totals.ownRepo,
+		stars: report.totals.stars,
+		contributionRows: report.contributionRows,
+		repositories: report.repositories,
+		output: report.output.location,
+		outputSize: megabytes(report.output.bytes),
+	})
+
 /** Prints the top 10 and the summary of a season build. */
 export const printSeasonReport = (report: BuildSeasonReport) =>
 	Effect.gen(function* () {
 		yield* Console.table(report.top)
 		yield* Console.table({
 			season: report.season,
+			published:
+				report.published === 'all'
+					? 'all files'
+					: 'candidates only (no shards, boards or index)',
 			status: report.status,
 			daysIncluded: report.daysIncluded.length,
 			missingDays: report.missingDays.join(', ') || 'none',

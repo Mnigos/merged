@@ -8,6 +8,7 @@ import { vi } from 'vitest'
 import { DayStore } from '../application/day-store.port'
 import { IngestDay } from '../application/ingest-day.service'
 import type { DailyAggregate } from '../domain/daily-aggregate'
+import { inMemoryDayPartStoreLayer } from '../testing/in-memory-day-part-store'
 import { inMemoryDayStoreLayer } from '../testing/in-memory-day-store'
 import { ghArchiveHttpSourceLayer } from './gh-archive-http-source'
 
@@ -76,7 +77,13 @@ function ingestText(text: string, chunkSize = 128) {
 	}).pipe(
 		Effect.provide(
 			IngestDay.layer.pipe(
-				Layer.provideMerge(Layer.mergeAll(sourceLayer, inMemoryDayStoreLayer))
+				Layer.provideMerge(
+					Layer.mergeAll(
+						sourceLayer,
+						inMemoryDayStoreLayer,
+						inMemoryDayPartStoreLayer
+					)
+				)
 			)
 		)
 	)

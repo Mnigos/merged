@@ -36,7 +36,7 @@ async function runRead<TValue>(
 	try {
 		result = await runServer(effect)
 	} catch (error) {
-		// Also covers runtime build failures (e.g. missing `BLOB_BASE_URL`); storage errors carry no tokens.
+		// Also covers runtime build failures (e.g. an invalid `DATA_REPOSITORY`); storage errors carry no tokens.
 		console.error('Leaderboard read failed', error)
 		setResponseStatus(500)
 		throw new Error(LOAD_FAILED_MESSAGE, { cause: error })
