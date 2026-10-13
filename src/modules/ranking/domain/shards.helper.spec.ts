@@ -6,7 +6,6 @@ import {
 	toEnrichment,
 	toSeason,
 } from '../testing/season.mock'
-import { buildBoards } from './boards.helper'
 import { emptyEnrichment } from './enrichment.model'
 import { scoreSeason } from './score-season.helper'
 import {
@@ -60,16 +59,11 @@ describe('buildShards', () => {
 		mergers: { 'acme/widgets#2': 'alice' },
 	})
 	const scored = scoreSeason(season, enrichment)
-	const { polandRanks } = buildBoards({
-		season,
-		scored,
-		enrichment,
-		computedAt,
-	})
+	const countryRanks = new Map([[login('alice'), { code: 'pl', rank: 1 }]])
 	const shards = buildShards({
 		seasonId,
 		scored,
-		polandRanks,
+		countryRanks,
 		enrichment,
 		computedAt,
 	})
@@ -99,7 +93,7 @@ describe('buildShards', () => {
 		const empty = buildShards({
 			seasonId,
 			scored: { ranked: [], excluded: [] },
-			polandRanks: new Map(),
+			countryRanks: new Map(),
 			enrichment: emptyEnrichment,
 			computedAt,
 		})
@@ -121,7 +115,7 @@ describe('buildShards', () => {
 			score: alice?.score,
 			mergedPullRequests: 2,
 			selfMergedPullRequests: 1,
-			boards: { poland: 1 },
+			boards: { country: { code: 'pl', rank: 1 } },
 			repositories: alice?.repositories.map(repository => ({
 				repository: repository.repository,
 				mergedPullRequests: repository.merged,
@@ -141,7 +135,7 @@ describe('buildShards', () => {
 			rank: null,
 			percentile: null,
 			excluded: 'bot',
-			boards: { poland: null },
+			boards: { country: null },
 		})
 	})
 
@@ -155,9 +149,9 @@ describe('buildShards', () => {
 		})
 	})
 
-	it('leaves the Poland rank empty outside Poland', () => {
+	it('leaves the country rank empty without a country board', () => {
 		expect(entryOf('bob')).toMatchObject({
-			boards: { poland: null },
+			boards: { country: null },
 			name: null,
 			location: null,
 			excluded: null,

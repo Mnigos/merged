@@ -1,7 +1,7 @@
 import type { GitHubLogin } from '@shared/schema/github-login.schema'
 import type { SeasonId } from '@shared/schema/season-id.schema'
 import type { SeasonEnrichment } from './enrichment.model'
-import type { ShardEntry, ShardFile } from './files/shard.file'
+import type { CountryRank, ShardEntry, ShardFile } from './files/shard.file'
 import { compareText } from './ranks.helper'
 import type {
 	ContributorResult,
@@ -46,7 +46,7 @@ interface ShardEntryInput {
 	readonly rank: number | null
 	readonly percentile: number | null
 	readonly excluded: ExcludedContributor['exclusion'] | null
-	readonly polandRanks: ReadonlyMap<GitHubLogin, number>
+	readonly countryRanks: ReadonlyMap<GitHubLogin, CountryRank>
 	readonly enrichment: SeasonEnrichment
 }
 
@@ -55,7 +55,7 @@ function toShardEntry({
 	rank,
 	percentile,
 	excluded,
-	polandRanks,
+	countryRanks,
 	enrichment,
 }: ShardEntryInput): ShardEntry {
 	const profile = enrichment.contributors.get(contributor.login)
@@ -67,7 +67,7 @@ function toShardEntry({
 		score: contributor.score,
 		mergedPullRequests: contributor.merged,
 		selfMergedPullRequests: contributor.selfMerged,
-		boards: { poland: polandRanks.get(contributor.login) ?? null },
+		boards: { country: countryRanks.get(contributor.login) ?? null },
 		repositories: contributor.repositories.map(repository => ({
 			repository: repository.repository,
 			mergedPullRequests: repository.merged,
@@ -85,7 +85,7 @@ function toShardEntry({
 export interface ShardsInput {
 	readonly seasonId: SeasonId
 	readonly scored: ScoredSeason
-	readonly polandRanks: ReadonlyMap<GitHubLogin, number>
+	readonly countryRanks: ReadonlyMap<GitHubLogin, CountryRank>
 	readonly enrichment: SeasonEnrichment
 	readonly computedAt: string
 }
@@ -97,7 +97,7 @@ export interface ShardsInput {
 export function buildShards({
 	seasonId,
 	scored,
-	polandRanks,
+	countryRanks,
 	enrichment,
 	computedAt,
 }: ShardsInput): ReadonlyMap<string, ShardFile> {
@@ -106,7 +106,7 @@ export function buildShards({
 	)
 	const add = (entry: ShardEntry) =>
 		entries.get(shardKeyOf(entry.login))?.push(entry)
-	const shared = { polandRanks, enrichment }
+	const shared = { countryRanks, enrichment }
 
 	for (const contributor of scored.ranked)
 		add(

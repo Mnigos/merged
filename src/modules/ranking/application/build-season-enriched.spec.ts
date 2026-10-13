@@ -116,22 +116,19 @@ const build = Effect.gen(function* () {
 	yield* TestClock.setTime(NOW)
 	const report = yield* (yield* BuildSeason).run(seasonId)
 	const store = yield* SeasonStore
-	const board = (id: 'global' | 'poland') =>
-		store
-			.readBoard(seasonId, id)
-			.pipe(Effect.map(file => Option.getOrThrow(file).rows))
+	const index = Option.getOrThrow(yield* store.readIndex())
 
 	return {
 		report,
-		global: yield* board('global'),
-		poland: yield* board('poland'),
+		global: Option.getOrThrow(yield* store.readBoard(seasonId, 'global')).rows,
+		countries: index.seasons[0]?.countries,
 	}
 })
 
 describe('BuildSeason with profiles enrichment', () => {
 	it.effect('scores pass 1 from archive proxies before enrich ran', () =>
 		Effect.gen(function* () {
-			const { report, global, poland } = yield* build
+			const { report, global, countries } = yield* build
 
 			expect(report.withoutCountedRepository).toBe(1)
 			expect(
@@ -140,15 +137,15 @@ describe('BuildSeason with profiles enrichment', () => {
 				['bob', 0],
 				['carol', 0],
 			])
-			expect(poland).toEqual([])
+			expect(countries).toEqual([])
 		}).pipe(Effect.provide(buildLayer(dayFiles())))
 	)
 
 	it.effect(
-		'scores pass 2: real stars count a lone repository, mergers resolve self-merges, locations fill the Poland board',
+		'scores pass 2: real stars count a lone repository, mergers resolve self-merges, locations reach the rows',
 		() =>
 			Effect.gen(function* () {
-				const { report, global, poland } = yield* build
+				const { report, global, countries } = yield* build
 
 				expect(report.withoutCountedRepository).toBe(0)
 				expect(global[0]).toMatchObject({
@@ -176,9 +173,8 @@ describe('BuildSeason with profiles enrichment', () => {
 				expect(carol?.score).toBe(
 					Math.round(SCORE_SCALE * Math.sqrt(PR_WEIGHT.merged) * popularity)
 				)
-				expect(poland).toMatchObject([
-					{ rank: 1, login: 'carol', location: 'Gdańsk, Poland' },
-				])
+				expect(carol?.location).toBe('Gdańsk, Poland')
+				expect(countries).toEqual([])
 			}).pipe(
 				Effect.provide(buildLayer(new Map([...dayFiles(), ...profileFiles()])))
 			)

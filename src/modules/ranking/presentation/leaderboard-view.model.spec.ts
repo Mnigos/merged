@@ -38,6 +38,13 @@ const index = {
 	seasons: [entry, { ...entry, id: september, status: 'final' }],
 } as const satisfies SeasonIndex
 
+const POLAND = {
+	code: 'pl',
+	name: 'Poland',
+	flag: '🇵🇱',
+	contributors: 1204,
+} as const
+
 const shardEntry = (fields: Partial<ShardEntry>): ShardEntry => ({
 	login: login('steipete'),
 	rank: 3,
@@ -45,7 +52,7 @@ const shardEntry = (fields: Partial<ShardEntry>): ShardEntry => ({
 	score: 2677,
 	mergedPullRequests: 2,
 	selfMergedPullRequests: 3,
-	boards: { poland: null },
+	boards: { country: null },
 	repositories: [
 		{
 			repository: 'openclaw/openclaw',
@@ -90,6 +97,13 @@ describe('toSeasonView', () => {
 		expect(toSeasonView({ ...entry, excludedBots: 179 }).excludedBots).toBe(179)
 		expect(toSeasonView(entry).excludedBots).toBeNull()
 	})
+
+	it('carries the countries with a board, none for an index written before them', () => {
+		expect(toSeasonView({ ...entry, countries: [POLAND] }).countries).toEqual([
+			POLAND,
+		])
+		expect(toSeasonView(entry).countries).toEqual([])
+	})
 })
 
 describe('toContributorOutcome', () => {
@@ -111,7 +125,7 @@ describe('toContributorOutcome', () => {
 		const shards = buildShards({
 			seasonId: october,
 			scored: scoreSeason(season, enrichment),
-			polandRanks: new Map(),
+			countryRanks: new Map(),
 			enrichment,
 			computedAt,
 		})
@@ -135,17 +149,33 @@ describe('toContributorOutcome', () => {
 		'preserves %d self-merges separately from the total',
 		selfMergedPullRequests => {
 			expect(
-				toContributorView(
-					shardEntry({ selfMergedPullRequests, boards: { poland: 2 } })
-				)
+				toContributorView(shardEntry({ selfMergedPullRequests }), [])
 			).toMatchObject({
 				selfMergedPullRequests,
 				mergedPullRequests: 2 + selfMergedPullRequests,
-				polandRank: 2,
 				percentile: 99.9,
 			})
 		}
 	)
+
+	it('names the country rank from the season countries', () => {
+		expect(
+			toContributorView(
+				shardEntry({ boards: { country: { code: 'pl', rank: 2 } } }),
+				[POLAND]
+			).country
+		).toEqual({ code: 'pl', name: 'Poland', flag: '🇵🇱', rank: 2 })
+	})
+
+	it.each([
+		['a shard written before country boards', {}],
+		['no country board', { country: null }],
+		['a country the index does not list', { country: { code: 'de', rank: 1 } }],
+	])('has no country rank with %s', (_, boards) => {
+		expect(
+			toContributorOutcome('steipete', shardEntry({ boards }), [POLAND])
+		).toMatchObject({ contributor: { country: null } })
+	})
 	it('is not found without a shard entry', () => {
 		expect(toContributorOutcome('ghost', undefined)).toEqual({
 			state: 'notFound',
@@ -240,6 +270,16 @@ describe('toBoardView and toVisitorRow', () => {
 			})
 		}
 	)
+
+	it('carries the country of a country board, none on Global', () => {
+		expect(board.country).toBeNull()
+		expect(
+			toBoardView(
+				{ ...file, board: 'country', country: POLAND, contributors: 1204 },
+				2
+			)
+		).toMatchObject({ id: 'country', country: POLAND, contributors: 1204 })
+	})
 
 	it('keeps the requested rows and how many there are', () => {
 		expect(board.rows.map(row => row.login)).toEqual(['alice', 'bob'])

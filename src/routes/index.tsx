@@ -20,7 +20,7 @@ export const Route = createFileRoute('/')({
 		const season = loaderData?.season
 
 		return season && loaderData
-			? await loadHomeData(season.id, deps, loaderData.renderedAt)
+			? await loadHomeData(season, deps, loaderData.renderedAt)
 			: null
 	},
 	staleTime: 5 * 60_000,
@@ -46,7 +46,7 @@ function HomePage() {
 				<HeroLookup season={data.season} />
 			</Hero>
 			<HomeLeaderboard
-				search={search}
+				search={{ ...search, board: data.board }}
 				season={data.season}
 				selection={data.selection}
 			/>

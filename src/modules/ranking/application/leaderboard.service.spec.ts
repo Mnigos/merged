@@ -4,6 +4,7 @@ import { inMemoryJsonStorageLayer } from '@shared/storage/in-memory.storage'
 import { JsonStorage } from '@shared/storage/json-storage.port'
 import { Effect, Layer, Option } from 'effect'
 import { buildBoards } from '../domain/boards.helper'
+import type { BoardFile } from '../domain/files/board.file'
 import { scoreSeason } from '../domain/score-season.helper'
 import {
 	toSeasonIndexEntry,
@@ -40,10 +41,17 @@ const boards = buildBoards({ season, scored, enrichment, computedAt })
 const shards = buildShards({
 	seasonId,
 	scored,
-	polandRanks: boards.polandRanks,
+	countryRanks: boards.countryRanks,
 	enrichment,
 	computedAt,
 })
+const polandBoard = {
+	...boards.global,
+	board: 'country',
+	country: { code: 'pl', name: 'Poland', flag: '🇵🇱', contributors: 1 },
+	contributors: 1,
+	rows: boards.global.rows.filter(row => row.login === 'bob'),
+} as const satisfies BoardFile
 const index = upsertSeasonIndex(
 	undefined,
 	toSeasonIndexEntry({ season, scored, now: new Date(computedAt) })
@@ -53,7 +61,7 @@ const seasonFiles = () =>
 	new Map([
 		[SEASON_INDEX_PATH, JSON.stringify(index)],
 		[toBoardPath(seasonId, 'global'), JSON.stringify(boards.global)],
-		[toBoardPath(seasonId, 'poland'), JSON.stringify(boards.poland)],
+		[toBoardPath(seasonId, 'country-pl'), JSON.stringify(polandBoard)],
 		[
 			toBoardPath(seasonId, 'repositories'),
 			JSON.stringify(boards.repositories),
@@ -145,8 +153,11 @@ describe('Leaderboard', () => {
 			Effect.gen(function* () {
 				const leaderboard = yield* Leaderboard
 
-				expect(yield* leaderboard.board(seasonId, 'poland')).toEqual(
-					Option.some(boards.poland)
+				expect(yield* leaderboard.board(seasonId, 'country-pl')).toEqual(
+					Option.some(polandBoard)
+				)
+				expect(yield* leaderboard.board(seasonId, 'country-de')).toEqual(
+					Option.none()
 				)
 				expect(yield* leaderboard.repositories(seasonId)).toEqual(
 					Option.some(boards.repositories)

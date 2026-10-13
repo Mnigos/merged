@@ -1,11 +1,24 @@
 import type { SearchSchemaInput } from '@tanstack/react-router'
 import { toLookupLogin } from './lookup-login.helper'
 
-/** Tabs of the leaderboard: the contributor boards and the repository board. */
-export const BOARD_IDS = ['global', 'poland', 'repositories'] as const
+/** Boards every season has; country boards come from the season index. */
+export const BOARD_IDS = ['global', 'repositories'] as const
 
-/** A tab of the leaderboard: a contributor board or the repository board. */
-export type BoardId = (typeof BOARD_IDS)[number]
+/**
+ * A tab of the leaderboard: Global, Repositories, or a country board by its
+ * lowercase ISO 3166-1 alpha-2 code such as `pl`. Whether a country has a
+ * board this season is checked against the season index when `/` loads.
+ */
+export type BoardId =
+	| (typeof BOARD_IDS)[number]
+	| (string & Record<never, never>)
+
+const COUNTRY_BOARD_ID = /^[a-z]{2}$/u
+
+/** Board ids of shared links from before country boards, and the board they meant. */
+const LEGACY_BOARD_IDS: ReadonlyMap<string, BoardId> = new Map([
+	['poland', 'pl'],
+])
 
 /** Rows a board can show: the top 25 or the whole top 100. */
 export const ROW_COUNTS = [25, 100] as const
@@ -24,22 +37,48 @@ export const HOME_SEARCH_DEFAULTS = {
 	rows: 25,
 } as const satisfies HomeSearch
 
-const isBoardId = (value: unknown): value is BoardId =>
-	BOARD_IDS.some(board => board === value)
+function toBoardId(value: unknown): BoardId | undefined {
+	if (typeof value !== 'string') return undefined
+	const legacy = LEGACY_BOARD_IDS.get(value)
+	if (legacy) return legacy
+	if (BOARD_IDS.some(board => board === value) || COUNTRY_BOARD_ID.test(value))
+		return value
+
+	return undefined
+}
 
 const isRowCount = (value: unknown): value is RowCount =>
 	ROW_COUNTS.some(rows => rows === value)
 
 /**
  * Search params of `/` from parsed URL params: unknown or missing values fall
- * back to the defaults. Plain checks, so no Schema code ships to the browser.
+ * back to the defaults, `poland` from old links becomes `pl`. Plain checks,
+ * so no Schema code ships to the browser.
  */
 export const toHomeSearch = (
 	search: Readonly<Record<string, unknown>>
 ): HomeSearch => ({
-	board: isBoardId(search.board) ? search.board : HOME_SEARCH_DEFAULTS.board,
+	board: toBoardId(search.board) ?? HOME_SEARCH_DEFAULTS.board,
 	rows: isRowCount(search.rows) ? search.rows : HOME_SEARCH_DEFAULTS.rows,
 })
+
+interface BoardCountry {
+	readonly code: string
+}
+
+/**
+ * The board `/` shows for `?board=`: Global and Repositories always, a
+ * country only when it has a board this season (`countries` of the season
+ * index), otherwise Global.
+ */
+export const toShownBoard = (
+	board: BoardId,
+	countries: readonly BoardCountry[]
+): BoardId =>
+	BOARD_IDS.some(id => id === board) ||
+	countries.some(country => country.code === board)
+		? board
+		: 'global'
 
 export interface LookupSearch {
 	readonly login?: string

@@ -98,7 +98,7 @@ describe('BuildSeason', () => {
 				repositories: 3,
 				mergedPullRequests: 8,
 				candidates: { contributors: 4, repositories: 3, pullRequests: 8 },
-				filesWritten: 1 + 3 + SHARD_COUNT + 1,
+				filesWritten: 1 + 2 + SHARD_COUNT + 1,
 			})
 			expect(report.top.map(row => row.login)).toEqual([
 				'alice',
@@ -151,6 +151,7 @@ describe('BuildSeason', () => {
 							repositories: 3,
 							mergedPullRequests: 8,
 							excludedBots: 1,
+							countries: [],
 						},
 						previousSeason,
 					],
@@ -195,7 +196,7 @@ describe('BuildSeason', () => {
 	)
 
 	it.effect(
-		'applies enrichment: bots, mergers, real stars and the Poland board',
+		'applies enrichment: bots, mergers, real stars and locations',
 		() => {
 			const files = seededFiles()
 
@@ -205,10 +206,6 @@ describe('BuildSeason', () => {
 				const store = yield* SeasonStore
 				const global = Option.getOrThrow(
 					yield* store.readBoard(seasonId, 'global')
-				)
-				const poland = decodeJson(
-					boardFileSchema,
-					files.get('seasons/2026-10/tabs/poland.json')
 				)
 				const shardEntry = (name: string) =>
 					store
@@ -223,15 +220,18 @@ describe('BuildSeason', () => {
 					mergedPullRequests: 3,
 					selfMergedPullRequests: 1,
 				})
-				expect(poland.rows).toMatchObject([
-					{ rank: 1, login: 'dave', name: 'Dave', location: 'Wrocław' },
-				])
+				expect(global.rows[1]).toMatchObject({
+					login: 'dave',
+					name: 'Dave',
+					location: 'Wrocław',
+				})
+				expect(files.has('seasons/2026-10/tabs/country-pl.json')).toBe(false)
 				expect(yield* shardEntry('robo')).toMatchObject({
 					excluded: 'bot',
 					rank: null,
 				})
 				expect(yield* shardEntry('dave')).toMatchObject({
-					boards: { poland: 1 },
+					boards: { country: null },
 					excluded: null,
 				})
 				expect(
@@ -269,11 +269,87 @@ describe('BuildSeason', () => {
 					{ repository: 'tiny/tool', number: 3, author: 'alice' },
 				],
 			})
-			expect(
-				Option.getOrThrow(yield* store.readBoard(seasonId, 'poland')).rows
-			).toEqual([])
+			expect(yield* store.readBoard(seasonId, 'country-pl')).toEqual(
+				Option.none()
+			)
 		}).pipe(Effect.provide(buildLayer(files, emptyEnrichment)))
 	})
+
+	it.effect(
+		'writes a board for every country from 10 contributors and lists it in the index',
+		() => {
+			const names = Array.from(
+				{ length: 12 },
+				(_, index) => `dev-${String(index).padStart(2, '0')}`
+			)
+			const files = new Map([
+				[
+					'days/2026-10-01.json',
+					JSON.stringify(
+						toDay({
+							date: '2026-10-01',
+							rows: names.map((author, index) => ({
+								author,
+								repository: 'org/repo',
+								merged: 20 - index,
+							})),
+							stars: { 'org/repo': 3 },
+						})
+					),
+				],
+			])
+			const locations = toEnrichment({
+				contributors: Object.fromEntries(
+					names.map((name, index) => [
+						name,
+						{ location: index < 10 ? 'Kraków, Poland' : 'Lisbon' },
+					])
+				),
+			})
+
+			return Effect.gen(function* () {
+				yield* TestClock.setTime(NOW)
+				const report = yield* (yield* BuildSeason).run(seasonId)
+				const store = yield* SeasonStore
+				const poland = decodeJson(
+					boardFileSchema,
+					files.get('seasons/2026-10/tabs/country-pl.json')
+				)
+
+				expect(report.filesWritten).toBe(1 + 3 + SHARD_COUNT + 1)
+				expect(poland).toMatchObject({
+					board: 'country',
+					country: {
+						code: 'pl',
+						name: 'Poland',
+						flag: '🇵🇱',
+						contributors: 10,
+					},
+					contributors: 10,
+				})
+				expect(poland.rows.map(row => [row.rank, row.login])).toEqual(
+					names.slice(0, 10).map((name, index) => [index + 1, name])
+				)
+				expect(files.has('seasons/2026-10/tabs/country-pt.json')).toBe(false)
+				expect(
+					decodeJson(seasonIndexSchema, files.get('seasons/index.json'))
+						.seasons[0]?.countries
+				).toEqual([
+					{ code: 'pl', name: 'Poland', flag: '🇵🇱', contributors: 10 },
+				])
+				expect(
+					Option.getOrThrow(
+						yield* store.readShard(seasonId, shardKeyOf('dev-03'))
+					).entries['dev-03']?.boards
+				).toEqual({ country: { code: 'pl', rank: 4 } })
+				expect(
+					Option.getOrThrow(
+						yield* store.readShard(seasonId, shardKeyOf('dev-11'))
+					).entries['dev-11']?.boards
+				).toEqual({ country: null })
+			}).pipe(Effect.provide(buildLayer(files, locations)))
+		}
+	)
 
 	it.effect('builds an empty provisional season when no day exists yet', () => {
 		const files = new Map<string, string>()
@@ -405,9 +481,6 @@ describe('BuildSeason', () => {
 					Option.getOrThrow(yield* store.readBoard(seasonId, 'global')).rows
 				).toEqual([])
 				expect(
-					Option.getOrThrow(yield* store.readBoard(seasonId, 'poland')).rows
-				).toEqual([])
-				expect(
 					Option.getOrThrow(yield* store.readRepositoryBoard(seasonId)).rows
 				).toMatchObject([
 					{ repository: 'solo/tool', contributors: 1, mergedPullRequests: 1 },
@@ -481,7 +554,7 @@ describe('BuildSeason', () => {
 				const all = yield* buildSeason.run(seasonId, { publish })
 
 				expect(all.published).toBe('all')
-				expect(all.filesWritten).toBe(1 + 3 + SHARD_COUNT + 1)
+				expect(all.filesWritten).toBe(1 + 2 + SHARD_COUNT + 1)
 				expect(all.candidates).toEqual(candidatesOnly.candidates)
 				expect(all.top).toEqual(candidatesOnly.top)
 				expect(files.get('seasons/2026-10/candidates.json')).toBe(
@@ -496,7 +569,6 @@ describe('BuildSeason', () => {
 						'seasons/2026-10/candidates.json',
 						...SHARD_KEYS.map(key => `seasons/2026-10/shards/${key}.json`),
 						'seasons/2026-10/tabs/global.json',
-						'seasons/2026-10/tabs/poland.json',
 						'seasons/2026-10/tabs/repositories.json',
 						'seasons/index.json',
 					].toSorted()

@@ -6,6 +6,7 @@ import { Effect, Layer, Option } from 'effect'
 import { SeasonStore } from '../application/season-store.port'
 import { buildBoards } from '../domain/boards.helper'
 import { selectCandidates } from '../domain/candidates.model'
+import type { BoardFile } from '../domain/files/board.file'
 import { scoreSeason } from '../domain/score-season.helper'
 import {
 	toSeasonIndexEntry,
@@ -14,6 +15,7 @@ import {
 import { buildShards, shardKeyOf } from '../domain/shards.helper'
 import {
 	computedAt,
+	login,
 	seasonId,
 	toEnrichment,
 	toSeason,
@@ -41,18 +43,30 @@ const boards = buildBoards({ season, scored, enrichment, computedAt })
 const shards = buildShards({
 	seasonId,
 	scored,
-	polandRanks: boards.polandRanks,
+	countryRanks: new Map([[login('bob'), { code: 'pl', rank: 1 }]]),
 	enrichment,
 	computedAt,
 })
+const POLAND = { code: 'pl', name: 'Poland', flag: '🇵🇱', contributors: 1 }
+const polandBoard = {
+	...boards.global,
+	board: 'country',
+	country: POLAND,
+	contributors: 1,
+	rows: boards.global.rows.filter(row => row.login === 'bob'),
+} as const satisfies BoardFile
+const bobShardKey = shardKeyOf('bob')
+const bobShard = Option.getOrThrow(
+	Option.fromNullishOr(shards.get(bobShardKey))
+)
 const aliceShardKey = shardKeyOf('alice')
 const aliceShard = Option.getOrThrow(
 	Option.fromNullishOr(shards.get(aliceShardKey))
 )
-const index = upsertSeasonIndex(
-	undefined,
-	toSeasonIndexEntry({ season, scored, now: new Date(computedAt) })
-)
+const index = upsertSeasonIndex(undefined, {
+	...toSeasonIndexEntry({ season, scored, now: new Date(computedAt) }),
+	countries: [POLAND],
+})
 const candidates = {
 	season: seasonId,
 	computedAt,
@@ -65,8 +79,8 @@ const storeOver = (files: Map<string, string>) =>
 describe('jsonSeasonStoreLayer', () => {
 	it('places every file under seasons/', () => {
 		expect(SEASON_INDEX_PATH).toBe('seasons/index.json')
-		expect(toBoardPath(seasonId, 'poland')).toBe(
-			'seasons/2026-10/tabs/poland.json'
+		expect(toBoardPath(seasonId, 'country-pl')).toBe(
+			'seasons/2026-10/tabs/country-pl.json'
 		)
 		expect(toBoardPath(seasonId, 'repositories')).toBe(
 			'seasons/2026-10/tabs/repositories.json'
@@ -82,7 +96,7 @@ describe('jsonSeasonStoreLayer', () => {
 			const store = yield* SeasonStore
 			yield* store.writeIndex(index)
 			yield* store.writeBoard(boards.global)
-			yield* store.writeBoard(boards.poland)
+			yield* store.writeBoard(polandBoard)
 			yield* store.writeRepositoryBoard(boards.repositories)
 			yield* store.writeShard(aliceShardKey, aliceShard)
 			yield* store.writeCandidates(candidates)
@@ -91,7 +105,7 @@ describe('jsonSeasonStoreLayer', () => {
 				[
 					'seasons/index.json',
 					'seasons/2026-10/tabs/global.json',
-					'seasons/2026-10/tabs/poland.json',
+					'seasons/2026-10/tabs/country-pl.json',
 					'seasons/2026-10/tabs/repositories.json',
 					`seasons/2026-10/shards/${aliceShardKey}.json`,
 					'seasons/2026-10/candidates.json',
@@ -101,8 +115,8 @@ describe('jsonSeasonStoreLayer', () => {
 			expect(yield* store.readBoard(seasonId, 'global')).toEqual(
 				Option.some(boards.global)
 			)
-			expect(yield* store.readBoard(seasonId, 'poland')).toEqual(
-				Option.some(boards.poland)
+			expect(yield* store.readBoard(seasonId, 'country-pl')).toEqual(
+				Option.some(polandBoard)
 			)
 			expect(yield* store.readRepositoryBoard(seasonId)).toEqual(
 				Option.some(boards.repositories)
@@ -138,6 +152,81 @@ describe('jsonSeasonStoreLayer', () => {
 						[
 							SEASON_INDEX_PATH,
 							JSON.stringify({ ...index, generator: 'v2', extra: [1] }),
+						],
+					])
+				)
+			)
+		)
+	)
+
+	it.effect('reads files written before country boards', () => {
+		const { countries: _countries, ...oldEntry } = index.seasons[0] ?? {}
+		const bob = bobShard.entries[login('bob')]
+		const oldShard = {
+			...bobShard,
+			entries: { bob: { ...bob, boards: { poland: 3 } } },
+		}
+
+		return Effect.gen(function* () {
+			const store = yield* SeasonStore
+			const readIndex = Option.getOrThrow(yield* store.readIndex())
+			const readShard = Option.getOrThrow(
+				yield* store.readShard(seasonId, bobShardKey)
+			)
+
+			expect(readIndex.seasons[0]).not.toHaveProperty('countries')
+			expect(readShard.entries.bob?.boards).toEqual({})
+			expect(readShard.entries.bob?.rank).toBe(bob?.rank)
+		}).pipe(
+			Effect.provide(
+				storeOver(
+					new Map([
+						[
+							SEASON_INDEX_PATH,
+							JSON.stringify({ ...index, seasons: [oldEntry] }),
+						],
+						[toShardPath(seasonId, bobShardKey), JSON.stringify(oldShard)],
+					])
+				)
+			)
+		)
+	})
+
+	it.effect('writes and reads the country rank of a shard entry', () =>
+		Effect.gen(function* () {
+			const store = yield* SeasonStore
+			yield* store.writeShard(bobShardKey, bobShard)
+
+			expect(
+				Option.getOrThrow(yield* store.readShard(seasonId, bobShardKey)).entries
+					.bob?.boards
+			).toEqual({ country: { code: 'pl', rank: 1 } })
+		}).pipe(Effect.provide(storeOver(new Map())))
+	)
+
+	it.effect.each([
+		['PL', 'an uppercase code'],
+		['pol', 'a three-letter code'],
+	])('rejects a country board whose code is %j (%s)', ([code]) =>
+		Effect.gen(function* () {
+			const store = yield* SeasonStore
+
+			expect(
+				yield* Effect.flip(store.readBoard(seasonId, 'country-pl'))
+			).toMatchObject({
+				_tag: 'SeasonStoreError',
+				path: 'seasons/2026-10/tabs/country-pl.json',
+			})
+		}).pipe(
+			Effect.provide(
+				storeOver(
+					new Map([
+						[
+							toBoardPath(seasonId, 'country-pl'),
+							JSON.stringify({
+								...polandBoard,
+								country: { ...POLAND, code },
+							}),
 						],
 					])
 				)

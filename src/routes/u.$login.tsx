@@ -48,7 +48,7 @@ function ContributorPage() {
 										seasonName: formatSeasonName(season.id),
 										rank: outcome.contributor.rank ?? 0,
 										contributors: season.contributors,
-										polandRank: outcome.contributor.polandRank,
+										country: outcome.contributor.country,
 									}}
 									url={result.url}
 								/>
