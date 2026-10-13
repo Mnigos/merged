@@ -27,3 +27,17 @@ export const scoreSchema = Schema.Int.pipe(
 export const computedAtSchema = Schema.String.pipe(
 	Schema.check(Schema.isPattern(ISO_DATETIME_PATTERN))
 )
+
+/** A lowercase ISO 3166-1 alpha-2 country code, such as `pl`. */
+export const countryCodeSchema = Schema.String.pipe(
+	Schema.check(Schema.isPattern(/^[a-z]{2}$/u))
+)
+
+/** A country with a board: code, English name, flag emoji and contributors ranked on its board. */
+export const countrySummarySchema = Schema.Struct({
+	code: countryCodeSchema,
+	name: Schema.String,
+	flag: Schema.String,
+	contributors: countSchema,
+})
+export type CountrySummary = typeof countrySummarySchema.Type

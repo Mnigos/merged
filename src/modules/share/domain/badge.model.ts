@@ -1,3 +1,4 @@
+import type { CountrySummary } from '@modules/ranking/domain/files/file-fields.schema'
 import type { ShardEntry } from '@modules/ranking/domain/files/shard.file'
 import { topShareOf } from '@modules/ranking/domain/ranks.helper'
 
@@ -46,18 +47,30 @@ function getStanding(entry: ShardEntry | undefined) {
 	return `top ${SHARE_FORMAT.format(topShareOf(entry.percentile))}%`
 }
 
+function getCountryStanding(
+	entry: ShardEntry | undefined,
+	countries: readonly CountrySummary[]
+) {
+	const rank = entry?.boards.country
+	const country = countries.find(summary => summary.code === rank?.code)
+
+	return rank && country ? ` · #${rank.rank} in ${country.name}` : ''
+}
+
 /**
  * README badge of a contributor's season result: `#12 · Oct 2026` in the top
  * 100, `top 3% · Oct 2026` below it, `not ranked · Oct 2026` when excluded or
- * not found.
+ * not found. A rank on a country board of the season's `countries` follows
+ * the standing: `top 14.1% · #12 in Poland · Oct 2026`.
  */
 export const toBadge = (
 	seasonId: string,
-	entry: ShardEntry | undefined
+	entry: ShardEntry | undefined,
+	countries: readonly CountrySummary[] = []
 ): Badge => ({
 	schemaVersion: 1,
 	label: 'merged',
-	message: `${getStanding(entry)} · ${toShortSeasonName(seasonId)}`,
+	message: `${getStanding(entry)}${getCountryStanding(entry, countries)} · ${toShortSeasonName(seasonId)}`,
 	color: BADGE_COLOR,
 	namedLogo: 'github',
 })

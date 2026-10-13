@@ -3,6 +3,7 @@ import { seasonIdSchema } from '@shared/schema/season-id.schema'
 import { Schema } from 'effect'
 import {
 	computedAtSchema,
+	countryCodeSchema,
 	countSchema,
 	percentileSchema,
 	rankSchema,
@@ -26,6 +27,13 @@ export const shardRepositorySchema = Schema.Struct({
 })
 export type ShardRepository = typeof shardRepositorySchema.Type
 
+/** A contributor's rank on their country's board. */
+export const countryRankSchema = Schema.Struct({
+	code: countryCodeSchema,
+	rank: rankSchema,
+})
+export type CountryRank = typeof countryRankSchema.Type
+
 export const shardEntrySchema = Schema.Struct({
 	login: githubLoginSchema,
 	/** Global rank; null when the contributor is excluded. */
@@ -35,7 +43,14 @@ export const shardEntrySchema = Schema.Struct({
 	score: scoreSchema,
 	mergedPullRequests: countSchema,
 	selfMergedPullRequests: countSchema,
-	boards: Schema.Struct({ poland: Schema.NullOr(rankSchema) }),
+	/**
+	 * Ranks on boards besides Global: the country board, or null when the
+	 * contributor's country has no board. Absent in shards written before
+	 * country boards, whose `poland` field is ignored.
+	 */
+	boards: Schema.Struct({
+		country: Schema.optional(Schema.NullOr(countryRankSchema)),
+	}),
 	/** Every repository the contributor merged into: counted first, then by score. */
 	repositories: Schema.Array(shardRepositorySchema),
 	name: Schema.NullOr(Schema.String),

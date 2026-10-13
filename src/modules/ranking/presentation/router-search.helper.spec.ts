@@ -12,10 +12,11 @@ describe('parseSearch', () => {
 	)
 
 	it('still parses other values as JSON', () => {
-		expect(parseSearch('?board=poland&rows=100')).toEqual({
-			board: 'poland',
+		expect(parseSearch('?board=pl&rows=100')).toEqual({
+			board: 'pl',
 			rows: 100,
 		})
+		expect(parseSearch('?board=no')).toEqual({ board: 'no' })
 	})
 })
 
@@ -31,9 +32,13 @@ describe('stringifySearch', () => {
 	)
 
 	it('keeps JSON values and drops an empty search', () => {
-		expect(
-			parseSearch(stringifySearch({ board: 'poland', rows: 100 }))
-		).toEqual({ board: 'poland', rows: 100 })
+		expect(stringifySearch({ board: 'pl', rows: 100 })).toBe(
+			'?board=pl&rows=100'
+		)
+		expect(parseSearch(stringifySearch({ board: 'pl', rows: 100 }))).toEqual({
+			board: 'pl',
+			rows: 100,
+		})
 		expect(stringifySearch({})).toBe('')
 	})
 })

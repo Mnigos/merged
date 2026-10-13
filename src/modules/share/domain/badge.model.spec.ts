@@ -10,13 +10,16 @@ const entry = (fields: Partial<ShardEntry>): ShardEntry => ({
 	score: 1200,
 	mergedPullRequests: 10,
 	selfMergedPullRequests: 0,
-	boards: { poland: null },
+	boards: { country: null },
 	repositories: [],
 	name: null,
 	location: null,
 	excluded: null,
 	...fields,
 })
+
+const polish = (fields: Partial<ShardEntry>) =>
+	entry({ boards: { country: { code: 'pl', rank: 12 } }, ...fields })
 
 describe('toBadge', () => {
 	it.each([
@@ -60,6 +63,33 @@ describe('toBadge', () => {
 		expect(
 			toBadge('2026-10', entry({ rank: 640, percentile: 99.1 })).message
 		).toBe('top 0.9% · Oct 2026')
+	})
+
+	describe('with a country rank', () => {
+		const COUNTRIES = [
+			{ code: 'pl', name: 'Poland', flag: '🇵🇱', contributors: 1204 },
+		]
+
+		it.each([
+			[
+				polish({ rank: 1412, percentile: 85.9 }),
+				'top 14.1% · #12 in Poland · Oct 2026',
+			],
+			[polish({ rank: 40 }), '#40 · #12 in Poland · Oct 2026'],
+		])('adds it after the standing: %#', (shardEntry, message) => {
+			expect(toBadge('2026-10', shardEntry, COUNTRIES).message).toBe(message)
+		})
+
+		it('leaves it out for a country the season does not list', () => {
+			expect(
+				toBadge(
+					'2026-10',
+					entry({ boards: { country: { code: 'de', rank: 1 } } }),
+					COUNTRIES
+				).message
+			).toBe('#12 · Oct 2026')
+			expect(toBadge('2026-10', polish({})).message).toBe('#12 · Oct 2026')
+		})
 	})
 
 	it('says not ranked for an excluded or unknown contributor', () => {

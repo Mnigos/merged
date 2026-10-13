@@ -11,11 +11,17 @@ const BADGE_CACHE_CONTROL = 'public, max-age=3600'
 const readBadge = Effect.fn('Badge.read')(function* (login: string) {
 	const leaderboard = yield* Leaderboard
 	const index = yield* leaderboard.index()
-	const seasonId = Option.flatMapNullishOr(index, file => file.latest)
-	if (Option.isNone(seasonId)) return null
-	const entry = yield* leaderboard.contributor(seasonId.value, login)
+	const season = Option.flatMapNullishOr(index, file =>
+		file.seasons.find(entry => entry.id === file.latest)
+	)
+	if (Option.isNone(season)) return null
+	const entry = yield* leaderboard.contributor(season.value.id, login)
 
-	return toBadge(seasonId.value, Option.getOrUndefined(entry)) satisfies Badge
+	return toBadge(
+		season.value.id,
+		Option.getOrUndefined(entry),
+		season.value.countries
+	) satisfies Badge
 })
 
 /**

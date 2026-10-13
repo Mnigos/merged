@@ -188,9 +188,12 @@ export const MethodologyArticle = () => (
 						counts in full.
 					</li>
 					<li>
-						Names and locations come from the GitHub profiles of top candidates,
-						so the Poland board lists only contributors whose profile was
-						fetched and names a place in Poland.
+						Country boards read the free-text location on the GitHub profiles of
+						top candidates and match country names, in English and their own
+						languages, and major cities. There is no geocoding: a small town or
+						an unusual spelling places nobody, and a contributor whose profile
+						was not fetched has no country. A country gets a board once 10 of
+						its contributors are ranked.
 					</li>
 					<li>Private repositories and work outside GitHub are invisible.</li>
 				</ul>

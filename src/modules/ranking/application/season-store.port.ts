@@ -3,7 +3,7 @@ import type { StoredFile } from '@shared/storage/json-storage.port'
 import { Context, type Effect, type Option } from 'effect'
 import type {
 	BoardFile,
-	ContributorBoardId,
+	ContributorBoardKey,
 	RepositoryBoardFile,
 } from '../domain/files/board.file'
 import type { CandidatesFile } from '../domain/files/candidates.file'
@@ -20,7 +20,7 @@ export interface SeasonStoreShape {
 	readonly writeIndex: (index: SeasonIndex) => Write
 	readonly readBoard: (
 		seasonId: SeasonId,
-		board: ContributorBoardId
+		board: ContributorBoardKey
 	) => Read<BoardFile>
 	readonly writeBoard: (file: BoardFile) => Write
 	readonly readRepositoryBoard: (

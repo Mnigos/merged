@@ -10,7 +10,11 @@ import {
 	getContributorResult,
 	getRepositoryBoard,
 } from './leaderboard.functions'
-import type { HomeSearch } from './search-params.helper'
+import {
+	toShownBoard,
+	type BoardId,
+	type HomeSearch,
+} from './search-params.helper'
 import { toVisitorRow } from './visitor-row.helper'
 
 /** Rows of the Global board the season card lists. */
@@ -27,6 +31,8 @@ export type BoardSelection =
 export interface HomeData {
 	/** Server time when the page loaded, for relative labels on first paint. */
 	readonly renderedAt: number
+	/** The board shown, which is Global when `?board=` names a country without a board. */
+	readonly board: BoardId
 	readonly season: SeasonView
 	readonly leaders: readonly ContributorRowView[]
 	readonly selection: BoardSelection
@@ -37,39 +43,44 @@ async function loadSelection(
 	{ board, rows }: HomeSearch
 ): Promise<BoardSelection | undefined> {
 	if (board === 'global') return undefined
-	if (board === 'poland') {
-		const poland = await getBoard({ data: { season, board, rows } })
+	if (board === 'repositories') {
+		const repositories = await getRepositoryBoard({ data: { season, rows } })
 
-		return { kind: 'contributors', board: poland.board }
+		return {
+			kind: 'repositories',
+			rows: repositories.rows,
+			availableRows: repositories.availableRows,
+		}
 	}
-	const repositories = await getRepositoryBoard({ data: { season, rows } })
+	const country = await getBoard({ data: { season, board, rows } })
 
-	return {
-		kind: 'repositories',
-		rows: repositories.rows,
-		availableRows: repositories.availableRows,
-	}
+	return { kind: 'contributors', board: country.board }
 }
 
-/** Everything `/` shows for a season: the season card's leaders and the selected board. */
+/**
+ * Everything `/` shows for a season: the season card's leaders and the
+ * selected board; a country without a board this season shows Global.
+ */
 export async function loadHomeData(
-	season: string,
+	season: SeasonView,
 	search: HomeSearch,
 	renderedAt: number
 ): Promise<HomeData> {
+	const board = toShownBoard(search.board, season.countries)
 	const [global, selection] = await Promise.all([
 		getBoard({
 			data: {
-				season,
+				season: season.id,
 				board: 'global',
-				rows: search.board === 'global' ? search.rows : 25,
+				rows: board === 'global' ? search.rows : 25,
 			},
 		}),
-		loadSelection(season, search),
+		loadSelection(season.id, { ...search, board }),
 	])
 
 	return {
 		renderedAt,
+		board,
 		season: global.season,
 		leaders: global.board.rows.slice(0, LEADERS),
 		selection: selection ?? { kind: 'contributors', board: global.board },

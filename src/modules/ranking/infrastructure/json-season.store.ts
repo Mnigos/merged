@@ -6,7 +6,8 @@ import { SeasonStore } from '../application/season-store.port'
 import {
 	boardFileSchema,
 	repositoryBoardFileSchema,
-	type ContributorBoardId,
+	toBoardKey,
+	type ContributorBoardKey,
 } from '../domain/files/board.file'
 import { candidatesFileSchema } from '../domain/files/candidates.file'
 import { seasonIndexSchema } from '../domain/files/season-index.file'
@@ -15,10 +16,10 @@ import { shardFileSchema } from '../domain/files/shard.file'
 /** Storage path of the season index. */
 export const SEASON_INDEX_PATH = 'seasons/index.json'
 
-/** Storage path of a board file. */
+/** Storage path of a board file: `tabs/global.json`, `tabs/country-pl.json` or `tabs/repositories.json`. */
 export const toBoardPath = (
 	seasonId: SeasonId,
-	board: ContributorBoardId | 'repositories'
+	board: ContributorBoardKey | 'repositories'
 ) => `seasons/${seasonId}/tabs/${board}.json`
 
 /** Storage path of a shard file. */
@@ -75,7 +76,7 @@ export const jsonSeasonStoreLayer = Layer.effect(
 			readBoard: (seasonId, boardId) =>
 				board.read(toBoardPath(seasonId, boardId)),
 			writeBoard: file =>
-				board.write(toBoardPath(file.season, file.board), file),
+				board.write(toBoardPath(file.season, toBoardKey(file)), file),
 			readRepositoryBoard: seasonId =>
 				repositoryBoard.read(toBoardPath(seasonId, 'repositories')),
 			writeRepositoryBoard: file =>
