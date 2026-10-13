@@ -82,7 +82,8 @@ Full rules in `ARCHITECTURE.md`. Summary:
 - Implementation files stay under 400 lines; split by role (component, constants, helpers) before they grow past that. Spec files have no length limit.
 - Prefer `function` declarations for extracted block-body functions. Use arrows for callbacks, concise expression helpers, and components (arrow components are allowed).
 - Keep params/props interfaces directly above their use; components take `Readonly<ComponentNameProps>`.
-- Use kebab-case file names.
+- File names are kebab-case `<name>.<role>.ts(x)`; roles are `FILE_ROLE_SUFFIXES` in `scripts/lib/file-names.helper.ts`: `model`, `helper`, `file`, `schema`, `service`, `port`, `error`, `layer`, `functions`, `server`, `spec`, `mock`, `report`, `store`, `source`, `storage`, `http`, `config`, `component`, `hook`, `util` (see `ARCHITECTURE.md` for what each means).
+- Exempt from the suffix: TanStack routes in `src/routes/**`, `src/router.tsx`, `*.gen.ts`, and script entrypoints directly in `scripts/`. `scripts/lib/file-names.spec.ts` enforces the rule.
 - Use descriptive names; avoid cryptic single-letter callback variables.
 - Every module-level constant object literal is declared with `as const satisfies <Type>`; never a plain type annotation that widens literals, never a bare `as const` when the shape must match a type.
 - Config/lookup maps of literal values use `UPPER_SNAKE_CASE` for the binding and its keys. Keys that are domain values used for indexing (`PR_WEIGHT[mergeKind]`) keep domain spelling.

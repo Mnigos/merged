@@ -1,18 +1,18 @@
-import type { IngestSourceKind } from '@shared/config/ingest-source'
-import { toGithubGraphqlHttpLayer } from '@shared/github/github-graphql-http'
+import type { IngestSourceKind } from '@shared/config/ingest-source.config'
+import { toGithubGraphqlHttpLayer } from '@shared/github/github-graphql.http'
 import type { JsonStorage } from '@shared/storage/json-storage.port'
 import { Effect, Layer } from 'effect'
 import { DailyAggregates } from './application/daily-aggregates.service'
 import { IngestDay } from './application/ingest-day.service'
 import { MergeDayParts } from './application/merge-day-parts.service'
-import { jsonDayPartStoreLayer } from './infrastructure/json-day-part-store'
-import { jsonDayStoreLayer } from './infrastructure/json-day-store'
-import { archiveIngestSourceLayer } from './infrastructure/sources/archive-ingest-source'
-import { ghArchiveHttpSourceLayer } from './infrastructure/sources/gh-archive-http-source'
+import { jsonDayPartStoreLayer } from './infrastructure/json-day-part.store'
+import { jsonDayStoreLayer } from './infrastructure/json-day.store'
+import { archiveIngestSourceLayer } from './infrastructure/sources/archive-ingest.source'
+import { ghArchiveHttpSourceLayer } from './infrastructure/sources/gh-archive-http.source'
 import {
 	searchConcurrencyConfig,
 	toGithubSearchIngestSourceLayer,
-} from './infrastructure/sources/github-search-ingest-source'
+} from './infrastructure/sources/github-search-ingest.source'
 
 /**
  * `DailyAggregates` over whatever `JsonStorage` the composition root provides,

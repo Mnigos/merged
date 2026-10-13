@@ -1,11 +1,11 @@
-import type { IsoDate } from '@shared/schema/iso-date'
+import type { IsoDate } from '@shared/schema/iso-date.schema'
 import { Context, Effect, Layer, Option } from 'effect'
+import { DailyAggregateMergeError } from '../domain/daily-aggregate.error'
 import {
 	mergeDailyAggregates,
 	type DailyAggregate,
 	type DayTotals,
-} from '../domain/daily-aggregate'
-import { DailyAggregateMergeError } from '../domain/daily-aggregate.error'
+} from '../domain/daily-aggregate.model'
 import { DayPartStore } from './day-part-store.port'
 import type { DayStoreError } from './day-store.error'
 import { DayStore, type StoredDay } from './day-store.port'

@@ -4,8 +4,8 @@ import { Layer } from 'effect'
 import { BuildSeason } from './application/build-season.service'
 import { Candidates } from './application/candidates.service'
 import { Leaderboard } from './application/leaderboard.service'
-import { jsonSeasonStoreLayer } from './infrastructure/json-season-store'
-import { profilesEnrichmentSourceLayer } from './infrastructure/profiles-enrichment-source'
+import { jsonSeasonStoreLayer } from './infrastructure/json-season.store'
+import { profilesEnrichmentSourceLayer } from './infrastructure/profiles-enrichment.source'
 
 /**
  * `Candidates` over whatever `JsonStorage` the composition root provides, for

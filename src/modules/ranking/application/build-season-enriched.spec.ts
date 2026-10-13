@@ -1,13 +1,17 @@
 import { describe, expect, it } from '@effect/vitest'
-import { dailyAggregateSchema } from '@modules/ingest/domain/daily-aggregate'
+import { dailyAggregateSchema } from '@modules/ingest/domain/daily-aggregate.model'
 import { dailyAggregatesLayer } from '@modules/ingest/ingest.layer'
 import { seasonProfilesLayer } from '@modules/profiles/profiles.layer'
-import { inMemoryJsonStorageLayer } from '@shared/storage/in-memory-json-storage'
+import { inMemoryJsonStorageLayer } from '@shared/storage/in-memory.storage'
 import { Effect, Layer, Option, Schema } from 'effect'
 import { TestClock } from 'effect/testing'
-import { POPULARITY_OFFSET, PR_WEIGHT, SCORE_SCALE } from '../domain/scoring'
-import { jsonSeasonStoreLayer } from '../infrastructure/json-season-store'
-import { profilesEnrichmentSourceLayer } from '../infrastructure/profiles-enrichment-source'
+import {
+	POPULARITY_OFFSET,
+	PR_WEIGHT,
+	SCORE_SCALE,
+} from '../domain/scoring.helper'
+import { jsonSeasonStoreLayer } from '../infrastructure/json-season.store'
+import { profilesEnrichmentSourceLayer } from '../infrastructure/profiles-enrichment.source'
 import { seasonId, toDay } from '../testing/season.mock'
 import { BuildSeason } from './build-season.service'
 import { SeasonStore } from './season-store.port'

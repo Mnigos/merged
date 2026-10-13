@@ -1,6 +1,6 @@
-import type { IsoDate } from '@shared/schema/iso-date'
+import type { IsoDate } from '@shared/schema/iso-date.schema'
 import { Context, Effect, Layer, type Option } from 'effect'
-import type { DailyAggregate } from '../domain/daily-aggregate'
+import type { DailyAggregate } from '../domain/daily-aggregate.model'
 import type { DayStoreError } from './day-store.error'
 import { DayStore } from './day-store.port'
 

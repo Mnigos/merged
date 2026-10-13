@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@effect/vitest'
-import { isoDateSchema } from '@shared/schema/iso-date'
+import { isoDateSchema } from '@shared/schema/iso-date.schema'
 import { Effect, Layer, Option } from 'effect'
-import { inMemoryDayStoreLayer } from '../testing/in-memory-day-store'
+import { inMemoryDayStoreLayer } from '../testing/day-store.mock'
 import { DailyAggregates } from './daily-aggregates.service'
 import { DayStore } from './day-store.port'
 

@@ -1,15 +1,15 @@
 import {
 	ErrorMessage,
 	NotFoundMessage,
-} from '@modules/ranking/presentation/components/route-messages'
-import { SiteFrame } from '@modules/ranking/presentation/components/site-frame'
+} from '@modules/ranking/presentation/components/route-messages.component'
+import { SiteFrame } from '@modules/ranking/presentation/components/site-frame.component'
 import { getSeasonOverview } from '@modules/ranking/presentation/leaderboard.functions'
 import {
 	SITE_DESCRIPTION,
 	SITE_NAME,
 	toPageHead,
 	toPageTitle,
-} from '@modules/ranking/presentation/page-head'
+} from '@modules/ranking/presentation/page-head.helper'
 import {
 	createRootRoute,
 	HeadContent,

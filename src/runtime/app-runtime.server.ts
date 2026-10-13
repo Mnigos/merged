@@ -4,11 +4,11 @@ import { leaderboardLayer } from '@modules/ranking/ranking.layer'
 import {
 	dataDirectoryConfig,
 	dataSourceConfig,
-} from '@shared/config/data-source'
-import { cachedJsonStorageLayer } from '@shared/storage/cached-json-storage'
-import { githubReleaseJsonStorageLayer } from '@shared/storage/github-release-json-storage'
-import { localFileJsonStorageLayer } from '@shared/storage/local-file-json-storage'
-import { vercelBlobJsonStorageLayer } from '@shared/storage/vercel-blob-json-storage'
+} from '@shared/config/data-source.config'
+import { cachedJsonStorageLayer } from '@shared/storage/cached.storage'
+import { githubReleaseJsonStorageLayer } from '@shared/storage/github-release.storage'
+import { localFileJsonStorageLayer } from '@shared/storage/local-file.storage'
+import { vercelBlobJsonStorageLayer } from '@shared/storage/vercel-blob.storage'
 import { Effect, Layer, ManagedRuntime } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 

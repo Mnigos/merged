@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@effect/vitest'
 import { beforeEach, vi } from 'vitest'
 import { runServer } from '@/runtime/app-runtime.server'
-import { UNAVAILABLE_BADGE, type Badge } from '../domain/badge'
+import { UNAVAILABLE_BADGE, type Badge } from '../domain/badge.model'
 import { toBadgeResponse } from './badge.server'
 
 vi.mock('@/runtime/app-runtime.server', () => ({ runServer: vi.fn() }))
