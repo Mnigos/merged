@@ -1,7 +1,7 @@
-import type { IsoDate } from '@shared/schema/iso-date'
+import type { IsoDate } from '@shared/schema/iso-date.schema'
 import { Context, type Effect } from 'effect'
-import type { MergeEvent } from '../domain/merge-event'
-import type { StarEvent } from '../domain/star-event'
+import type { MergeEvent } from '../domain/merge-event.model'
+import type { StarEvent } from '../domain/star-event.model'
 import type { ArchiveSourceError } from './archive-source.error'
 import type { SearchSourceError } from './search-source.error'
 

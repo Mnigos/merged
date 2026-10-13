@@ -1,8 +1,8 @@
-import { MethodologyArticle } from '@modules/ranking/presentation/components/methodology-article'
+import { MethodologyArticle } from '@modules/ranking/presentation/components/methodology-article.component'
 import {
 	toPageHead,
 	toPageTitle,
-} from '@modules/ranking/presentation/page-head'
+} from '@modules/ranking/presentation/page-head.helper'
 import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/methodology')({

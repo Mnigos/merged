@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from '@effect/vitest'
 import { Result } from 'effect'
-import { parsePartLabels } from './part-labels'
+import { parsePartLabels } from './part-labels.helper'
 
 const WORKFLOWS = [
 	'pipeline.yml',

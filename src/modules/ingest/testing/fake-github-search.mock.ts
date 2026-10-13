@@ -1,5 +1,5 @@
 import type { GraphqlResponse } from '@shared/github/github-graphql.port'
-import type { GraphqlHandler } from '@shared/github/testing/in-memory-github-graphql'
+import type { GraphqlHandler } from '@shared/github/testing/github-graphql.mock'
 
 /** A merged pull request as a search node, in GitHub's JSON shape. */
 export interface FakePullRequest {

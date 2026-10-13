@@ -1,7 +1,7 @@
 import {
 	parseSearch,
 	stringifySearch,
-} from '@modules/ranking/presentation/router-search'
+} from '@modules/ranking/presentation/router-search.helper'
 import { createRouter } from '@tanstack/react-router'
 import { routeTree } from './routeTree.gen'
 

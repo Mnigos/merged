@@ -1,9 +1,9 @@
-import type { SeasonId } from '@shared/schema/season-id'
+import type { SeasonId } from '@shared/schema/season-id.schema'
 import type { StoredFile } from '@shared/storage/json-storage.port'
 import { Context, type Effect, type Option } from 'effect'
-import type { ContributorsFile } from '../domain/files/contributors-file'
-import type { MergersFile } from '../domain/files/mergers-file'
-import type { RepositoriesFile } from '../domain/files/repositories-file'
+import type { ContributorsFile } from '../domain/files/contributors.file'
+import type { MergersFile } from '../domain/files/mergers.file'
+import type { RepositoriesFile } from '../domain/files/repositories.file'
 import type { ProfileStoreError } from './profile-store.error'
 
 type Read<TValue> = Effect.Effect<Option.Option<TValue>, ProfileStoreError>

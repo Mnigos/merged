@@ -1,0 +1,46 @@
+import { Page } from '@shared/ui/page.component'
+import { Link } from '@tanstack/react-router'
+import { formatNumber, formatSeasonMonth } from '../format.helper'
+import type { SeasonView } from '../leaderboard-view.model'
+
+const FOOTER_LINK = 'text-fg-2 transition-colors duration-150 hover:text-fg'
+
+interface SiteFooterProps {
+	readonly season: SeasonView | null
+}
+
+export const SiteFooter = ({ season }: Readonly<SiteFooterProps>) => (
+	<footer>
+		<Page>
+			<div className="flex flex-wrap gap-x-6 gap-y-2.5 border-t border-line pt-5.5 pb-11 text-hint text-fg-3">
+				{season && (
+					<span>
+						{formatNumber(season.mergedPullRequests)} merged PRs counted in{' '}
+						{formatSeasonMonth(season.id)}
+						{season.excludedBots !== null &&
+							` · ${formatNumber(season.excludedBots)} bots excluded`}
+					</span>
+				)}
+				<span>
+					Data from the GitHub search API, formerly GH Archive via the{' '}
+					<a className={FOOTER_LINK} href="https://gharchive.open-digger.cn">
+						OpenDigger mirror
+					</a>
+				</span>
+				<Link className={FOOTER_LINK} to="/methodology">
+					Methodology
+				</Link>
+				<span className="md:ml-auto">
+					Built by{' '}
+					<a className={FOOTER_LINK} href="https://github.com/Mnigos">
+						@Mnigos
+					</a>{' '}
+					·{' '}
+					<a className={FOOTER_LINK} href="https://github.com/Mnigos/merged">
+						Source
+					</a>
+				</span>
+			</div>
+		</Page>
+	</footer>
+)

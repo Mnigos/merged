@@ -1,19 +1,19 @@
 import { describe, expect, it } from '@effect/vitest'
-import { inMemoryGitHubGraphqlLayer } from '@shared/github/testing/in-memory-github-graphql'
-import { isoDateSchema } from '@shared/schema/iso-date'
+import { inMemoryGitHubGraphqlLayer } from '@shared/github/testing/github-graphql.mock'
+import { isoDateSchema } from '@shared/schema/iso-date.schema'
 import { Effect, Layer, Option } from 'effect'
 import { DayStore } from '../../application/day-store.port'
 import { IngestDay } from '../../application/ingest-day.service'
 import type { IngestSource } from '../../application/ingest-source.port'
+import { inMemoryArchiveIngestSourceLayer } from '../../testing/archive-source.mock'
+import { inMemoryDayPartStoreLayer } from '../../testing/day-part-store.mock'
+import { inMemoryDayStoreLayer } from '../../testing/day-store.mock'
 import {
 	fakeGitHubSearchHandler,
 	fakePullRequest,
 	type FakePullRequest,
 } from '../../testing/fake-github-search.mock'
-import { inMemoryArchiveIngestSourceLayer } from '../../testing/in-memory-archive-source'
-import { inMemoryDayPartStoreLayer } from '../../testing/in-memory-day-part-store'
-import { inMemoryDayStoreLayer } from '../../testing/in-memory-day-store'
-import { toGithubSearchIngestSourceLayer } from './github-search-ingest-source'
+import { toGithubSearchIngestSourceLayer } from './github-search-ingest.source'
 
 const date = isoDateSchema.make('2026-10-01')
 
