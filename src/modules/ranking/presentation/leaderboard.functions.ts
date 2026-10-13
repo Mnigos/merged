@@ -1,12 +1,12 @@
-import { githubLoginSchema } from '@shared/schema/github-login'
-import { seasonIdSchema } from '@shared/schema/season-id'
+import { githubLoginSchema } from '@shared/schema/github-login.schema'
+import { seasonIdSchema } from '@shared/schema/season-id.schema'
 import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestUrl, setResponseStatus } from '@tanstack/react-start/server'
 import { Effect, Option, Schema } from 'effect'
 import { runServer, type AppServices } from '@/runtime/app-runtime.server'
 import { Leaderboard } from '../application/leaderboard.service'
-import { contributorBoardIdSchema } from '../domain/files/board-file'
+import { contributorBoardIdSchema } from '../domain/files/board.file'
 import {
 	findSeason,
 	toBoardView,
@@ -17,9 +17,9 @@ import {
 	type ContributorResult,
 	type RepositoryBoardResult,
 	type SeasonView,
-} from './leaderboard-view'
-import { isGitHubLogin } from './lookup-login'
-import { ROW_COUNTS } from './search-params'
+} from './leaderboard-view.model'
+import { isGitHubLogin } from './lookup-login.helper'
+import { ROW_COUNTS } from './search-params.helper'
 
 /** What a visitor sees when season files cannot be read; no paths, no provider details. */
 export const LOAD_FAILED_MESSAGE =

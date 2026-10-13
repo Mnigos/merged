@@ -1,26 +1,29 @@
 import { DailyAggregates } from '@modules/ingest/application/daily-aggregates.service'
 import type { DayStoreError } from '@modules/ingest/application/day-store.error'
-import { isBot } from '@shared/github/bots'
-import { daysInSeason, type SeasonId } from '@shared/schema/season-id'
+import { isBot } from '@shared/github/bots.helper'
+import { daysInSeason, type SeasonId } from '@shared/schema/season-id.schema'
 import { Clock, Context, Duration, Effect, Layer, Option } from 'effect'
-import { buildBoards } from '../domain/boards'
+import { buildBoards } from '../domain/boards.helper'
 import {
 	DEFAULT_CANDIDATE_CONTRIBUTORS,
 	selectCandidates,
-} from '../domain/candidates'
-import { scoreSeason } from '../domain/score-season'
+} from '../domain/candidates.model'
+import { scoreSeason } from '../domain/score-season.helper'
+import {
+	toSeasonIndexEntry,
+	upsertSeasonIndex,
+} from '../domain/season-index.helper'
 import {
 	addDay,
 	createSeasonAccumulator,
 	finishSeason,
 	type SeasonAccumulator,
-} from '../domain/season'
-import { toSeasonIndexEntry, upsertSeasonIndex } from '../domain/season-index'
-import { buildShards } from '../domain/shards'
+} from '../domain/season.model'
+import { buildShards } from '../domain/shards.helper'
 import {
 	toBuildSeasonReport,
 	type BuildSeasonReport,
-} from './build-season-report'
+} from './build-season.report'
 import type { EnrichmentSourceError } from './enrichment-source.error'
 import { EnrichmentSource } from './enrichment-source.port'
 import type { SeasonStoreError } from './season-store.error'

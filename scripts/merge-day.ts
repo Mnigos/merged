@@ -2,16 +2,16 @@ import { parseArgs } from 'node:util'
 import { BunRuntime, BunServices } from '@effect/platform-bun'
 import { MergeDayParts } from '@modules/ingest/application/merge-day-parts.service'
 import { toMergeDayPartsLayer } from '@modules/ingest/ingest.layer'
-import { isoDateSchema } from '@shared/schema/iso-date'
-import { localFileJsonStorageLayer } from '@shared/storage/local-file-json-storage'
+import { isoDateSchema } from '@shared/schema/iso-date.schema'
+import { localFileJsonStorageLayer } from '@shared/storage/local-file.storage'
 import { Effect, Layer, Schema } from 'effect'
-import { parsePartLabels } from './lib/part-labels'
-import { printMergedDay } from './lib/reports'
+import { parsePartLabels } from './lib/part-labels.helper'
+import { printMergedDay } from './lib/reports.helper'
 import {
 	STORAGE_OPTION,
 	storageKindSchema,
 	toStorageLayer,
-} from './lib/storage-layer'
+} from './lib/storage-layer.helper'
 
 const argsSchema = Schema.Struct({
 	date: isoDateSchema,

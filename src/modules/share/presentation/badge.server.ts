@@ -1,8 +1,8 @@
 import { Leaderboard } from '@modules/ranking/application/leaderboard.service'
-import { GITHUB_LOGIN_PATTERN } from '@shared/github/login-pattern'
+import { GITHUB_LOGIN_PATTERN } from '@shared/github/login-pattern.helper'
 import { Effect, Option } from 'effect'
 import { runServer } from '@/runtime/app-runtime.server'
-import { toBadge, UNAVAILABLE_BADGE, type Badge } from '../domain/badge'
+import { toBadge, UNAVAILABLE_BADGE, type Badge } from '../domain/badge.model'
 
 /** Badges are cached for an hour by browsers, shields.io and the CDN. */
 const BADGE_CACHE_CONTROL = 'public, max-age=3600'

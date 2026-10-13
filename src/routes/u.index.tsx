@@ -1,7 +1,7 @@
 import {
 	toLookupTarget,
 	validateLookupSearch,
-} from '@modules/ranking/presentation/search-params'
+} from '@modules/ranking/presentation/search-params.helper'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/u/')({

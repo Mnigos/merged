@@ -1,9 +1,9 @@
-import type { GitHubLogin } from '@shared/schema/github-login'
+import type { GitHubLogin } from '@shared/schema/github-login.schema'
 import { Context, type Effect } from 'effect'
-import type { ContributorProfile } from '../domain/contributor-profile'
-import type { PullRequestTarget } from '../domain/enrichment-targets'
-import type { MergeResolution } from '../domain/merge-resolution'
-import type { RepositoryProfile } from '../domain/repository-profile'
+import type { ContributorProfile } from '../domain/contributor-profile.model'
+import type { PullRequestTarget } from '../domain/enrichment-targets.model'
+import type { MergeResolution } from '../domain/merge-resolution.helper'
+import type { RepositoryProfile } from '../domain/repository-profile.model'
 import type { ProfileSourceError } from './profile-source.error'
 
 /** Profiles fetched in one query, missing ones included. */

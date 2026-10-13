@@ -1,6 +1,6 @@
-import type { SeasonId } from '@shared/schema/season-id'
+import type { SeasonId } from '@shared/schema/season-id.schema'
 import { Context, Effect, Layer, type Option } from 'effect'
-import type { CandidatesFile } from '../domain/files/candidates-file'
+import type { CandidatesFile } from '../domain/files/candidates.file'
 import type { SeasonStoreError } from './season-store.error'
 import { SeasonStore } from './season-store.port'
 

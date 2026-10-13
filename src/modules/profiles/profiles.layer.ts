@@ -1,8 +1,8 @@
 import { Layer } from 'effect'
 import { Enrich } from './application/enrich.service'
 import { SeasonProfiles } from './application/season-profiles.service'
-import { githubProfileSourceLayer } from './infrastructure/github-profile-source'
-import { jsonProfileStoreLayer } from './infrastructure/json-profile-store'
+import { githubProfileSourceLayer } from './infrastructure/github-profile.source'
+import { jsonProfileStoreLayer } from './infrastructure/json-profile.store'
 
 /**
  * `SeasonProfiles` over whatever `JsonStorage` the composition root provides,

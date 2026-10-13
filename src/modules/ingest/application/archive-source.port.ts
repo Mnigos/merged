@@ -1,4 +1,4 @@
-import type { IsoDate } from '@shared/schema/iso-date'
+import type { IsoDate } from '@shared/schema/iso-date.schema'
 import { Context, type Effect, type Stream } from 'effect'
 import type { ArchiveSourceError } from './archive-source.error'
 

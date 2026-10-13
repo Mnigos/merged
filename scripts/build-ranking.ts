@@ -2,14 +2,14 @@ import { parseArgs } from 'node:util'
 import { BunRuntime, BunServices } from '@effect/platform-bun'
 import { BuildSeason } from '@modules/ranking/application/build-season.service'
 import { rankingLayer } from '@modules/ranking/ranking.layer'
-import { seasonIdOf, seasonIdSchema } from '@shared/schema/season-id'
+import { seasonIdOf, seasonIdSchema } from '@shared/schema/season-id.schema'
 import { Clock, Effect, Layer, Schema } from 'effect'
-import { printSeasonReport } from './lib/reports'
+import { printSeasonReport } from './lib/reports.helper'
 import {
 	STORAGE_OPTION,
 	storageKindSchema,
 	toStorageLayer,
-} from './lib/storage-layer'
+} from './lib/storage-layer.helper'
 
 const argsSchema = Schema.Struct({
 	season: seasonIdSchema,

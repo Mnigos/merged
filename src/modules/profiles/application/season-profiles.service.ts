@@ -1,8 +1,8 @@
-import type { SeasonId } from '@shared/schema/season-id'
+import type { SeasonId } from '@shared/schema/season-id.schema'
 import { Context, Effect, Layer, type Option } from 'effect'
-import type { ContributorsFile } from '../domain/files/contributors-file'
-import type { MergersFile } from '../domain/files/mergers-file'
-import type { RepositoriesFile } from '../domain/files/repositories-file'
+import type { ContributorsFile } from '../domain/files/contributors.file'
+import type { MergersFile } from '../domain/files/mergers.file'
+import type { RepositoriesFile } from '../domain/files/repositories.file'
 import type { ProfileStoreError } from './profile-store.error'
 import { ProfileStore } from './profile-store.port'
 

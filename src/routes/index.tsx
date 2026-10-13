@@ -1,14 +1,14 @@
-import { Hero } from '@modules/ranking/presentation/components/hero'
-import { HeroLookup } from '@modules/ranking/presentation/components/hero-lookup'
-import { HomeLeaderboard } from '@modules/ranking/presentation/components/home-leaderboard'
-import { MethodSection } from '@modules/ranking/presentation/components/method-section'
-import { NoSeasonMessage } from '@modules/ranking/presentation/components/no-season-message'
-import { SeasonCard } from '@modules/ranking/presentation/components/season-card'
-import { loadHomeData } from '@modules/ranking/presentation/page-data'
+import { HeroLookup } from '@modules/ranking/presentation/components/hero-lookup.component'
+import { Hero } from '@modules/ranking/presentation/components/hero.component'
+import { HomeLeaderboard } from '@modules/ranking/presentation/components/home-leaderboard.component'
+import { MethodSection } from '@modules/ranking/presentation/components/method-section.component'
+import { NoSeasonMessage } from '@modules/ranking/presentation/components/no-season-message.component'
+import { SeasonCard } from '@modules/ranking/presentation/components/season-card.component'
+import { loadHomeData } from '@modules/ranking/presentation/page-data.helper'
 import {
 	HOME_SEARCH_DEFAULTS,
 	validateHomeSearch,
-} from '@modules/ranking/presentation/search-params'
+} from '@modules/ranking/presentation/search-params.helper'
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/')({

@@ -1,6 +1,6 @@
-import type { IsoDate } from '@shared/schema/iso-date'
+import type { IsoDate } from '@shared/schema/iso-date.schema'
 import { Context, Duration, Effect, Layer } from 'effect'
-import { aggregateDay } from '../domain/daily-aggregate'
+import { aggregateDay } from '../domain/daily-aggregate.model'
 import type { ArchiveSourceError } from './archive-source.error'
 import { DayPartStore } from './day-part-store.port'
 import type { DayStoreError } from './day-store.error'
@@ -9,7 +9,7 @@ import {
 	toHourMetrics,
 	toIngestMetrics,
 	type IngestMetrics,
-} from './ingest-metrics'
+} from './ingest-metrics.helper'
 import { IngestSource } from './ingest-source.port'
 import type { SearchSourceError } from './search-source.error'
 
