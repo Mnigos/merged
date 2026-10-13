@@ -3,14 +3,23 @@ import { seasonIdSchema } from '@shared/schema/season-id.schema'
 import { Schema } from 'effect'
 import {
 	computedAtSchema,
+	countrySummarySchema,
 	countSchema,
 	percentileSchema,
 	rankSchema,
 	scoreSchema,
 } from './file-fields.schema'
 
-export const contributorBoardIdSchema = Schema.Literals(['global', 'poland'])
+/** A contributor board: Global, or the board of one country. */
+export const contributorBoardIdSchema = Schema.Literals(['global', 'country'])
 export type ContributorBoardId = typeof contributorBoardIdSchema.Type
+
+/** Name of a contributor board file: `global`, or `country-<code>` such as `country-pl`. */
+export type ContributorBoardKey = 'global' | `country-${string}`
+
+/** File name of a country's board, `pl` → `country-pl`. */
+export const toCountryBoardKey = (code: string): ContributorBoardKey =>
+	`country-${code}`
 
 /** One of a contributor's best repositories on a board row. */
 export const topRepositorySchema = Schema.Struct({
@@ -41,16 +50,22 @@ export const boardRowSchema = Schema.Struct({
 })
 export type BoardRow = typeof boardRowSchema.Type
 
-/** `seasons/<id>/tabs/global.json` and `tabs/poland.json`: the top 100 of a contributor board. */
+/** `seasons/<id>/tabs/global.json` and `tabs/country-<code>.json`: the top 100 of a contributor board. */
 export const boardFileSchema = Schema.Struct({
 	season: seasonIdSchema,
 	board: contributorBoardIdSchema,
+	/** The board's country; present on country boards only. */
+	country: Schema.optional(countrySummarySchema),
 	computedAt: computedAtSchema,
 	/** Contributors ranked on this board in total, not only the rows. */
 	contributors: countSchema,
 	rows: Schema.Array(boardRowSchema),
 })
 export type BoardFile = typeof boardFileSchema.Type
+
+/** File name of a board file: `global`, or `country-<code>` for a country board. */
+export const toBoardKey = (file: BoardFile): ContributorBoardKey =>
+	file.country ? toCountryBoardKey(file.country.code) : 'global'
 
 export const repositoryBoardRowSchema = Schema.Struct({
 	rank: rankSchema,

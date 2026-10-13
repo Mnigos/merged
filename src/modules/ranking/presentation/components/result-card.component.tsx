@@ -1,6 +1,7 @@
 import { MergedIcon } from '@shared/ui/merged-icon.component'
 import { Stat, StatGrid } from '@shared/ui/stat-grid.component'
 import { StatePill } from '@shared/ui/state-pill.component'
+import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import {
 	formatCount,
@@ -23,9 +24,18 @@ const StandingLine = ({ contributor }: Readonly<StandingLineProps>) => {
 		<p className="text-sm text-fg-2 [&_b]:font-semibold [&_b]:text-fg">
 			{profile.length > 0 && `${profile.join(' · ')} · `}
 			<b>#{formatNumber(contributor.rank ?? 0)}</b> worldwide
-			{contributor.polandRank !== null && (
+			{contributor.country && (
 				<>
-					, <b>#{formatNumber(contributor.polandRank)}</b> in Poland
+					,{' '}
+					<Link
+						className="underline decoration-line-2 hover:decoration-fg-2"
+						hash="leaderboard"
+						search={{ board: contributor.country.code }}
+						to="/"
+					>
+						<b>#{formatNumber(contributor.country.rank)}</b> in{' '}
+						{contributor.country.name} {contributor.country.flag}
+					</Link>
 				</>
 			)}
 		</p>

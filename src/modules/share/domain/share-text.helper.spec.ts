@@ -2,18 +2,38 @@ import { describe, expect, it } from '@effect/vitest'
 import { toShareText, toXIntentUrl } from './share-text.helper'
 
 describe('toShareText', () => {
-	it('includes the Poland rank when present', () => {
-		const input = {
-			mergedPullRequests: 41,
-			repositories: 8,
-			seasonName: 'October 2026',
-			rank: 12,
-			contributors: 6853,
-			polandRank: 2,
-		}
-
-		expect(toShareText(input)).toMatch(/#2\b.*Poland/u)
+	it('includes the country rank when present', () => {
+		expect(
+			toShareText({
+				mergedPullRequests: 41,
+				repositories: 8,
+				seasonName: 'October 2026',
+				rank: 1412,
+				contributors: 36_638,
+				country: { name: 'Poland', rank: 12 },
+			})
+		).toBe(
+			'I got merged 41 times into 8 repositories in October 2026, #1,412 of 36,638 and #12 in Poland on merged'
+		)
 	})
+
+	it.each([null, undefined])(
+		'leaves the country out when it is %s',
+		country => {
+			expect(
+				toShareText({
+					mergedPullRequests: 2,
+					repositories: 1,
+					seasonName: 'October 2026',
+					rank: 4,
+					contributors: 10,
+					country,
+				})
+			).toBe(
+				'I got merged 2 times into 1 repository in October 2026, #4 of 10 on merged'
+			)
+		}
+	)
 	it('reads as one first-person sentence with the rank', () => {
 		expect(
 			toShareText({
@@ -46,7 +66,7 @@ describe('toShareText', () => {
 describe('toXIntentUrl', () => {
 	it('preserves reserved characters and a result URL with its own query', () => {
 		const text = 'Merged #12 & #2 in Poland + 99.9% · Łódź'
-		const url = 'https://merged.dev/u/alice?season=2026-10&board=poland#result'
+		const url = 'https://merged.dev/u/alice?season=2026-10&board=pl#result'
 		const intent = new URL(toXIntentUrl({ text, url }))
 
 		expect([...intent.searchParams.entries()]).toEqual([
