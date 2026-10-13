@@ -1,16 +1,16 @@
-import { ContributorResultCard } from '@modules/ranking/presentation/components/contributor-result'
-import { Hero } from '@modules/ranking/presentation/components/hero'
-import { HeroLookup } from '@modules/ranking/presentation/components/hero-lookup'
-import { ResultLeaderboard } from '@modules/ranking/presentation/components/result-leaderboard'
+import { ContributorResultCard } from '@modules/ranking/presentation/components/contributor-result.component'
+import { HeroLookup } from '@modules/ranking/presentation/components/hero-lookup.component'
+import { Hero } from '@modules/ranking/presentation/components/hero.component'
+import { ResultLeaderboard } from '@modules/ranking/presentation/components/result-leaderboard.component'
 import {
 	InvalidLoginMessage,
 	NotFoundMessage,
-} from '@modules/ranking/presentation/components/route-messages'
-import { formatSeasonName } from '@modules/ranking/presentation/format'
-import { isGitHubLogin } from '@modules/ranking/presentation/lookup-login'
-import { loadContributorPageData } from '@modules/ranking/presentation/page-data'
-import { toResultHead } from '@modules/ranking/presentation/page-head'
-import { ShareActions } from '@modules/share/presentation/components/share-actions'
+} from '@modules/ranking/presentation/components/route-messages.component'
+import { formatSeasonName } from '@modules/ranking/presentation/format.helper'
+import { isGitHubLogin } from '@modules/ranking/presentation/lookup-login.helper'
+import { loadContributorPageData } from '@modules/ranking/presentation/page-data.helper'
+import { toResultHead } from '@modules/ranking/presentation/page-head.helper'
+import { ShareActions } from '@modules/share/presentation/components/share-actions.component'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/u/$login')({

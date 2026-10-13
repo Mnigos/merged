@@ -1,18 +1,21 @@
 import { describe, expect, it } from '@effect/vitest'
-import { seasonIdSchema } from '@shared/schema/season-id'
-import { inMemoryJsonStorageLayer } from '@shared/storage/in-memory-json-storage'
+import { seasonIdSchema } from '@shared/schema/season-id.schema'
+import { inMemoryJsonStorageLayer } from '@shared/storage/in-memory.storage'
 import { JsonStorage } from '@shared/storage/json-storage.port'
 import { Effect, Layer, Option } from 'effect'
-import { buildBoards } from '../domain/boards'
-import { scoreSeason } from '../domain/score-season'
-import { toSeasonIndexEntry, upsertSeasonIndex } from '../domain/season-index'
-import { buildShards, shardKeyOf } from '../domain/shards'
+import { buildBoards } from '../domain/boards.helper'
+import { scoreSeason } from '../domain/score-season.helper'
+import {
+	toSeasonIndexEntry,
+	upsertSeasonIndex,
+} from '../domain/season-index.helper'
+import { buildShards, shardKeyOf } from '../domain/shards.helper'
 import {
 	jsonSeasonStoreLayer,
 	SEASON_INDEX_PATH,
 	toBoardPath,
 	toShardPath,
-} from '../infrastructure/json-season-store'
+} from '../infrastructure/json-season.store'
 import {
 	computedAt,
 	seasonId,

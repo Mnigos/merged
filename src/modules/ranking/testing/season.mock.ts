@@ -1,15 +1,15 @@
-import type { DailyAggregate } from '@modules/ingest/domain/daily-aggregate'
-import { githubLoginSchema } from '@shared/schema/github-login'
-import { isoDateSchema } from '@shared/schema/iso-date'
-import { seasonIdSchema } from '@shared/schema/season-id'
+import type { DailyAggregate } from '@modules/ingest/domain/daily-aggregate.model'
+import { githubLoginSchema } from '@shared/schema/github-login.schema'
+import { isoDateSchema } from '@shared/schema/iso-date.schema'
+import { seasonIdSchema } from '@shared/schema/season-id.schema'
 import {
 	toPullRequestKey,
 	type ContributorProfile,
 	type PullRequestKey,
 	type RepositoryProfile,
 	type SeasonEnrichment,
-} from '../domain/enrichment'
-import { assembleSeason } from '../domain/season'
+} from '../domain/enrichment.model'
+import { assembleSeason } from '../domain/season.model'
 
 export const login = githubLoginSchema.make
 export const seasonId = seasonIdSchema.make('2026-10')

@@ -1,13 +1,13 @@
-import type { SeasonId } from '@shared/schema/season-id'
+import type { SeasonId } from '@shared/schema/season-id.schema'
 import { Context, Effect, Layer, Option } from 'effect'
 import type {
 	BoardFile,
 	ContributorBoardId,
 	RepositoryBoardFile,
-} from '../domain/files/board-file'
-import type { SeasonIndex } from '../domain/files/season-index-file'
-import type { ShardEntry } from '../domain/files/shard-file'
-import { shardKeyOf } from '../domain/shards'
+} from '../domain/files/board.file'
+import type { SeasonIndex } from '../domain/files/season-index.file'
+import type { ShardEntry } from '../domain/files/shard.file'
+import { shardKeyOf } from '../domain/shards.helper'
 import type { SeasonStoreError } from './season-store.error'
 import { SeasonStore } from './season-store.port'
 

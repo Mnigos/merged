@@ -5,24 +5,24 @@ import {
 	DEFAULT_CONCURRENCY,
 	IngestDay,
 } from '@modules/ingest/application/ingest-day.service'
-import type { IngestMetrics } from '@modules/ingest/application/ingest-metrics'
+import type { IngestMetrics } from '@modules/ingest/application/ingest-metrics.helper'
 import { toIngestLayer } from '@modules/ingest/ingest.layer'
 import {
 	ingestSourceConfig,
 	ingestSourceKindSchema,
-} from '@shared/config/ingest-source'
-import { isoDateSchema } from '@shared/schema/iso-date'
+} from '@shared/config/ingest-source.config'
+import { isoDateSchema } from '@shared/schema/iso-date.schema'
 import { Console, Effect, Layer, Option, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 import { InvalidPartsError } from './lib/invalid-parts.error'
-import { parseHours } from './lib/parse-hours'
-import { toPartLabel } from './lib/part-labels'
-import { printIngestMetrics } from './lib/reports'
+import { parseHours } from './lib/parse-hours.helper'
+import { toPartLabel } from './lib/part-labels.helper'
+import { printIngestMetrics } from './lib/reports.helper'
 import {
 	STORAGE_OPTION,
 	storageKindSchema,
 	toStorageLayer,
-} from './lib/storage-layer'
+} from './lib/storage-layer.helper'
 
 const argsSchema = Schema.Struct({
 	date: isoDateSchema,

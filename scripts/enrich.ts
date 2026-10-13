@@ -1,20 +1,20 @@
 import { parseArgs } from 'node:util'
 import { BunRuntime, BunServices } from '@effect/platform-bun'
 import { Enrich } from '@modules/profiles/application/enrich.service'
-import { DEFAULT_MAX_AGE_DAYS } from '@modules/profiles/domain/freshness'
+import { DEFAULT_MAX_AGE_DAYS } from '@modules/profiles/domain/freshness.helper'
 import { profilesLayer } from '@modules/profiles/profiles.layer'
 import { Candidates } from '@modules/ranking/application/candidates.service'
 import { candidatesLayer } from '@modules/ranking/ranking.layer'
-import { githubGraphqlHttpLayer } from '@shared/github/github-graphql-http'
-import { seasonIdOf, seasonIdSchema } from '@shared/schema/season-id'
+import { githubGraphqlHttpLayer } from '@shared/github/github-graphql.http'
+import { seasonIdOf, seasonIdSchema } from '@shared/schema/season-id.schema'
 import { Clock, Effect, Layer, Option, Schema } from 'effect'
 import { FetchHttpClient } from 'effect/http'
-import { printEnrichReport } from './lib/reports'
+import { printEnrichReport } from './lib/reports.helper'
 import {
 	STORAGE_OPTION,
 	storageKindSchema,
 	toStorageLayer,
-} from './lib/storage-layer'
+} from './lib/storage-layer.helper'
 
 const limitSchema = Schema.optional(
 	Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(0)))

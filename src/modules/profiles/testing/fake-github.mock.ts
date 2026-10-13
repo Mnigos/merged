@@ -2,7 +2,7 @@ import type {
 	GraphqlError,
 	GraphqlResponse,
 } from '@shared/github/github-graphql.port'
-import type { GraphqlHandler } from '@shared/github/testing/in-memory-github-graphql'
+import type { GraphqlHandler } from '@shared/github/testing/github-graphql.mock'
 
 export interface FakeUser {
 	readonly name?: string | null
