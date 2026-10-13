@@ -2,7 +2,7 @@ import type { SeasonId } from '@shared/schema/season-id.schema'
 import { Context, Effect, Layer, Option } from 'effect'
 import type {
 	BoardFile,
-	ContributorBoardId,
+	ContributorBoardKey,
 	RepositoryBoardFile,
 } from '../domain/files/board.file'
 import type { SeasonIndex } from '../domain/files/season-index.file'
@@ -17,7 +17,7 @@ export interface LeaderboardShape {
 	readonly index: () => Read<SeasonIndex>
 	readonly board: (
 		seasonId: SeasonId,
-		board: ContributorBoardId
+		board: ContributorBoardKey
 	) => Read<BoardFile>
 	readonly repositories: (seasonId: SeasonId) => Read<RepositoryBoardFile>
 	/** A contributor's shard entry by login, compared lowercase. */
@@ -40,7 +40,7 @@ export class Leaderboard extends Context.Service<
 
 			const board = Effect.fn('Leaderboard.board')(function* (
 				seasonId: SeasonId,
-				boardId: ContributorBoardId
+				boardId: ContributorBoardKey
 			) {
 				return yield* store.readBoard(seasonId, boardId)
 			})

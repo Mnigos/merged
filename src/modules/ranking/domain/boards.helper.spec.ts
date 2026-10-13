@@ -1,9 +1,15 @@
 import { describe, expect, it } from '@effect/vitest'
-import { computedAt, toEnrichment, toSeason } from '../testing/season.mock'
+import {
+	computedAt,
+	login,
+	toEnrichment,
+	toSeason,
+} from '../testing/season.mock'
 import {
 	BOARD_SIZE,
 	buildBoards,
-	rankPoland,
+	COUNTRY_BOARD_MIN_CONTRIBUTORS,
+	rankCountries,
 	TOP_REPOSITORIES,
 } from './boards.helper'
 import { emptyEnrichment } from './enrichment.model'
@@ -77,18 +83,9 @@ describe('buildBoards', () => {
 		})
 	})
 
-	it('ranks the Poland board among Polish locations only, with its own ranks', () => {
-		expect(boards.poland).toMatchObject({ board: 'poland', contributors: 2 })
-		expect(
-			boards.poland.rows.map(row => [row.rank, row.login, row.percentile])
-		).toEqual([
-			[1, 'carol', scored.ranked[1]?.percentile],
-			[2, 'bob', scored.ranked[2]?.percentile],
-		])
-		expect([...boards.polandRanks]).toEqual([
-			['carol', 1],
-			['bob', 2],
-		])
+	it('gives no country a board below the threshold, and nobody a country rank', () => {
+		expect(boards.countries).toEqual([])
+		expect(boards.countryRanks.size).toBe(0)
 	})
 
 	it('ranks repositories by contributors, then merged PRs, with enrichment', () => {
@@ -136,46 +133,6 @@ describe('buildBoards', () => {
 		])
 	})
 
-	it('uses competition ranks within Poland even when global ranks differ', () => {
-		const tiedSeason = toSeason({
-			date: '2026-10-01',
-			rows: [
-				{ author: 'leader', repository: 'org/repo', merged: 9 },
-				{ author: 'amy', repository: 'org/repo', merged: 4 },
-				{ author: 'bob', repository: 'org/repo', merged: 4 },
-				{ author: 'carol', repository: 'org/repo', merged: 1 },
-			],
-		})
-		const profiles = toEnrichment({
-			contributors: {
-				leader: { location: 'Plymouth' },
-				amy: { location: '🇵🇱' },
-				bob: { location: 'PL' },
-				carol: { location: 'Lodz' },
-			},
-		})
-		const tiedBoards = buildBoards({
-			season: tiedSeason,
-			scored: scoreSeason(tiedSeason, profiles),
-			enrichment: profiles,
-			computedAt,
-		})
-
-		expect(tiedBoards.global.rows.map(row => [row.login, row.rank])).toEqual([
-			['leader', 1],
-			['amy', 2],
-			['bob', 2],
-			['carol', 4],
-		])
-		expect(
-			tiedBoards.poland.rows.map(row => [row.login, row.rank, row.percentile])
-		).toEqual([
-			['amy', 1, 25],
-			['bob', 1, 25],
-			['carol', 3, 0],
-		])
-	})
-
 	it('selects the three highest-scoring counted repositories before uncounted ones', () => {
 		const diverse = toSeason({
 			date: '2026-10-01',
@@ -217,12 +174,6 @@ describe('buildBoards', () => {
 		])
 	})
 
-	it('keeps the Poland board empty without enrichment', () => {
-		expect(
-			rankPoland(scoreSeason(season, emptyEnrichment), emptyEnrichment)
-		).toEqual([])
-	})
-
 	it('truncates boards to the top 100 but counts every contributor', () => {
 		const crowded = toSeason({
 			date: '2026-10-01',
@@ -260,10 +211,178 @@ describe('buildBoards', () => {
 				(_, index) => `user-${String(index).padStart(3, '0')}`
 			)
 		)
-		expect(crowdedBoards.poland.rows).toHaveLength(100)
-		expect(crowdedBoards.poland.contributors).toBe(105)
-		expect([...crowdedBoards.polandRanks.values()]).toEqual(
-			Array.from({ length: 105 }, () => 1)
+		expect(crowdedBoards.countries).toHaveLength(1)
+		expect(crowdedBoards.countries[0]?.rows).toHaveLength(100)
+		expect(crowdedBoards.countries[0]?.contributors).toBe(105)
+		expect([...crowdedBoards.countryRanks.values()]).toEqual(
+			Array.from({ length: 105 }, () => ({ code: 'pl', rank: 1 }))
 		)
+	})
+})
+
+interface CountrySeasonInput {
+	/** Location of each contributor, best first; each merges one fewer pull request than the one before. */
+	readonly locations: readonly (string | null)[]
+	/** Pull requests merged by contributors at these indexes, to make ties. */
+	readonly merged?: Readonly<Record<number, number>>
+}
+
+/** A season whose contributors are named `user-00`, `user-01`, … in the order of `locations`. */
+function toCountrySeason({ locations, merged = {} }: CountrySeasonInput) {
+	const names = locations.map(
+		(_, index) => `user-${String(index).padStart(2, '0')}`
+	)
+	const countrySeason = toSeason({
+		date: '2026-10-01',
+		rows: names.map((author, index) => ({
+			author,
+			repository: 'org/repo',
+			merged: merged[index] ?? locations.length - index,
+		})),
+		stars: { 'org/repo': 3 },
+	})
+	const countryEnrichment = toEnrichment({
+		contributors: Object.fromEntries(
+			names.map((name, index) => [name, { location: locations[index] ?? null }])
+		),
+	})
+
+	return {
+		scored: scoreSeason(countrySeason, countryEnrichment),
+		countrySeason,
+		countryEnrichment,
+	}
+}
+
+const POLISH_LOCATIONS = [
+	'Warsaw, Poland',
+	'Kraków',
+	'Wroclaw, PL',
+	'🇵🇱',
+	'Gdańsk',
+	'Polska',
+	'Łódź',
+	'Poznan',
+	'Remote (Szczecin)',
+	'Berlin -> Katowice',
+] as const
+
+const tens = (location: string) =>
+	Array.from({ length: COUNTRY_BOARD_MIN_CONTRIBUTORS }, () => location)
+
+describe('rankCountries', () => {
+	it('publishes a country only from the threshold of ranked contributors', () => {
+		const germans = Array.from(
+			{ length: COUNTRY_BOARD_MIN_CONTRIBUTORS - 1 },
+			() => 'Berlin, Germany'
+		)
+		const { scored, countryEnrichment } = toCountrySeason({
+			locations: [...POLISH_LOCATIONS, ...germans, 'Portland', null],
+		})
+		const countries = rankCountries(scored, countryEnrichment)
+
+		expect(COUNTRY_BOARD_MIN_CONTRIBUTORS).toBe(10)
+		expect([...countries.keys()]).toEqual(['pl'])
+		expect(
+			countries.get('pl')?.map(({ contributor }) => contributor.login)
+		).toEqual(
+			POLISH_LOCATIONS.map(
+				(_, index) => `user-${String(index).padStart(2, '0')}`
+			)
+		)
+	})
+
+	it('orders countries by contributors, then code', () => {
+		const { scored, countryEnrichment } = toCountrySeason({
+			locations: [
+				...tens('Tokyo'),
+				...tens('Paris, France'),
+				'Lyon',
+				...POLISH_LOCATIONS,
+			],
+		})
+
+		expect([...rankCountries(scored, countryEnrichment).keys()]).toEqual([
+			'fr',
+			'jp',
+			'pl',
+		])
+	})
+
+	it('uses competition ranks within a country even when global ranks differ', () => {
+		const { scored, countryEnrichment } = toCountrySeason({
+			locations: ['Plymouth', ...POLISH_LOCATIONS],
+			merged: { 0: 50, 1: 20, 2: 20, 3: 18, 4: 18, 5: 18 },
+		})
+		const placements = rankCountries(scored, countryEnrichment).get('pl') ?? []
+
+		expect(
+			placements.map(({ contributor, rank }) => [
+				contributor.login,
+				contributor.rank,
+				rank,
+			])
+		).toEqual([
+			['user-01', 2, 1],
+			['user-02', 2, 1],
+			['user-03', 4, 3],
+			['user-04', 4, 3],
+			['user-05', 4, 3],
+			['user-06', 7, 6],
+			['user-07', 8, 7],
+			['user-08', 9, 8],
+			['user-09', 10, 9],
+			['user-10', 11, 10],
+		])
+	})
+
+	it('has no country without enrichment', () => {
+		expect(
+			rankCountries(scoreSeason(season, emptyEnrichment), emptyEnrichment).size
+		).toBe(0)
+	})
+})
+
+describe('buildBoards country boards', () => {
+	const { scored, countrySeason, countryEnrichment } = toCountrySeason({
+		locations: ['Seattle, WA', ...POLISH_LOCATIONS],
+	})
+	const countryBoards = buildBoards({
+		season: countrySeason,
+		scored,
+		enrichment: countryEnrichment,
+		computedAt,
+	})
+
+	it('writes a country board with its country, own ranks and season percentiles', () => {
+		const [poland] = countryBoards.countries
+
+		expect(countryBoards.countries).toHaveLength(1)
+		expect(poland).toMatchObject({
+			season: '2026-10',
+			board: 'country',
+			country: { code: 'pl', name: 'Poland', flag: '🇵🇱', contributors: 10 },
+			computedAt,
+			contributors: 10,
+		})
+		expect(
+			poland?.rows.slice(0, 2).map(row => [row.rank, row.login, row.percentile])
+		).toEqual([
+			[1, 'user-01', scored.ranked[1]?.percentile],
+			[2, 'user-02', scored.ranked[2]?.percentile],
+		])
+		expect(countryBoards.global).not.toHaveProperty('country')
+	})
+
+	it('keeps the country rank of every contributor on a country board', () => {
+		expect(countryBoards.countryRanks.get(login('user-01'))).toEqual({
+			code: 'pl',
+			rank: 1,
+		})
+		expect(countryBoards.countryRanks.get(login('user-10'))).toEqual({
+			code: 'pl',
+			rank: 10,
+		})
+		expect(countryBoards.countryRanks.has(login('user-00'))).toBe(false)
 	})
 })

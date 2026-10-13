@@ -1,5 +1,5 @@
-import { formatSeasonName } from '../format.helper'
-import type { SeasonView } from '../leaderboard-view.model'
+import { formatNumber, formatSeasonName } from '../format.helper'
+import type { BoardView, SeasonView } from '../leaderboard-view.model'
 import type { BoardSelection } from '../page-data.helper'
 import type { HomeSearch } from '../search-params.helper'
 import { BoardTabs } from './board-tabs.component'
@@ -11,11 +11,32 @@ import {
 import { LeaderboardTable } from './leaderboard-table.component'
 import { RepositoryTable } from './repository-table.component'
 
-const BOARD_CAPTION = {
-	global: 'Global leaderboard',
-	poland: 'Poland leaderboard',
-	repositories: 'Repositories by outside contributors',
-} as const satisfies Record<HomeSearch['board'], string>
+const getBoardCaption = (selection: BoardSelection) => {
+	if (selection.kind === 'repositories')
+		return 'Repositories by outside contributors'
+
+	return selection.board.country
+		? `${selection.board.country.name} leaderboard`
+		: 'Global leaderboard'
+}
+
+interface BoardTitleProps {
+	readonly board: BoardView
+}
+
+/** "Leaderboard", or "Poland · 1,204 contributors" on a country board. */
+const BoardTitle = ({ board }: Readonly<BoardTitleProps>) =>
+	board.country ? (
+		<>
+			{board.country.name}
+			<span className="font-normal text-fg-3">
+				{' '}
+				· {formatNumber(board.country.contributors)} contributors
+			</span>
+		</>
+	) : (
+		'Leaderboard'
+	)
 
 interface HomeLeaderboardProps {
 	readonly season: SeasonView
@@ -29,15 +50,12 @@ export const HomeLeaderboard = ({
 	search,
 	selection,
 }: Readonly<HomeLeaderboardProps>) => {
-	const caption = `${BOARD_CAPTION[search.board]}, ${formatSeasonName(season.id)}`
+	const caption = `${getBoardCaption(selection)}, ${formatSeasonName(season.id)}`
+	const tabs = <BoardTabs countries={season.countries} search={search} />
 
 	if (selection.kind === 'repositories')
 		return (
-			<LeaderboardSection
-				season={season}
-				tabs={<BoardTabs current={search.board} />}
-				title="Leaderboard"
-			>
+			<LeaderboardSection season={season} tabs={tabs} title="Leaderboard">
 				<RepositoryTable caption={caption} rows={selection.rows} />
 				<RowsToggle
 					availableRows={selection.availableRows}
@@ -52,20 +70,12 @@ export const HomeLeaderboard = ({
 	return (
 		<LeaderboardSection
 			season={season}
-			tabs={<BoardTabs current={search.board} />}
-			title="Leaderboard"
+			tabs={tabs}
+			title={<BoardTitle board={board} />}
 		>
 			{board.rows.length === 0 ? (
-				<EmptyBoard
-					title={
-						board.id === 'poland'
-							? 'No contributors with a Polish location yet this season.'
-							: 'No contributor is ranked yet this season.'
-					}
-				>
-					{board.id === 'poland'
-						? 'Locations come from GitHub profiles of the top contributors, fetched daily. The board fills as they are.'
-						: 'The board fills once a day of merged pull requests has been counted.'}
+				<EmptyBoard title="No contributor is ranked yet this season.">
+					The board fills once a day of merged pull requests has been counted.
 				</EmptyBoard>
 			) : (
 				<LeaderboardTable caption={caption} rows={board.rows} />

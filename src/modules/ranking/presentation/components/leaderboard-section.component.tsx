@@ -11,7 +11,7 @@ const MORE_LINK =
 
 interface LeaderboardSectionProps {
 	readonly season: SeasonView
-	readonly title: string
+	readonly title: ReactNode
 	readonly tabs?: ReactNode
 	readonly children: ReactNode
 }

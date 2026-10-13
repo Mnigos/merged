@@ -7,7 +7,7 @@ export const contributorProfileSchema = Schema.Struct({
 	/** Lowercase login. */
 	login: githubLoginSchema,
 	name: Schema.NullOr(Schema.String),
-	/** Free-text GitHub location, input of the Poland board. */
+	/** Free-text GitHub location, input of the country boards. */
 	location: Schema.NullOr(Schema.String),
 	company: Schema.NullOr(Schema.String),
 	avatarUrl: Schema.NullOr(Schema.String),

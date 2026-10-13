@@ -26,7 +26,7 @@ A monthly leaderboard of open-source contributors computed only from pull reques
 
 ## Operating Context
 
-Visitor flow: link on X, page opens, visitor types a GitHub login, sees rank, score, percentile and a per-repository breakdown, then shares the card to X or copies a README badge. Data recomputes daily at 06:00 UTC; a season is a calendar month and the current day of the month is visible. Tabs: Global, Poland, and languages (TypeScript, Rust, Python, Go). Routes: `/`, `/u/:login`, `/og/:login.png`, `/api/badge/:login`, `/methodology`.
+Visitor flow: link on X, page opens, visitor types a GitHub login, sees rank, score, percentile and a per-repository breakdown, then shares the card to X or copies a README badge. Data recomputes daily at 06:00 UTC; a season is a calendar month and the current day of the month is visible. Tabs: Global, Repositories, a board per country with at least 10 ranked contributors, and languages later (TypeScript, Rust, Python, Go). Routes: `/`, `/u/:login`, `/og/:login.png`, `/api/badge/:login`, `/methodology`.
 
 ## Capabilities and Constraints
 
@@ -34,7 +34,7 @@ Visitor flow: link on X, page opens, visitor types a GitHub login, sees rank, sc
 - Realistic ranges: about 200,000 scored contributors per month; top 100 per tab; scores in the low thousands at the top; 1 to 60 merged PRs per person per month typical, a few hundred for extreme maintainers.
 - Lookup outcomes: found with rank; found below the top (percentile only); not found (no merged PRs this month); excluded (bot or own-repo only).
 - States: season in progress (day N of 31), finished season, data refreshing, lookup loading, not found, empty tab (for a language with few entries early in the month).
-- English UI. The Polish audience gets a Poland tab, not a Polish interface.
+- English UI. The Polish audience gets a Poland board (one of the country boards), not a Polish interface.
 - Avatars are real GitHub avatars; repository names and star counts are real.
 - Must load fast on a phone over cellular. The share image must read at X's link-preview size (1200×630) and at thumbnail size.
 

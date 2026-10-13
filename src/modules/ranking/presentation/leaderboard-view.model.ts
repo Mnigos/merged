@@ -13,6 +13,16 @@ import type {
 import type { ShardEntry } from '../domain/files/shard.file'
 import { lastDayIncluded } from '../domain/season-index.helper'
 
+/** A country with a board this season. */
+export interface CountryView {
+	/** Lowercase ISO 3166-1 alpha-2 code, also the board's `?board=` value. */
+	readonly code: string
+	readonly name: string
+	readonly flag: string
+	/** Contributors ranked on the country's board. */
+	readonly contributors: number
+}
+
 /** A season as the pages show it. */
 export interface SeasonView {
 	readonly id: string
@@ -27,6 +37,8 @@ export interface SeasonView {
 	readonly mergedPullRequests: number
 	/** Logins excluded as bots; `null` for indexes written before it was recorded. */
 	readonly excludedBots: number | null
+	/** Countries with a board, most contributors first. */
+	readonly countries: readonly CountryView[]
 }
 
 export interface ContributorRowView {
@@ -44,6 +56,8 @@ export interface ContributorRowView {
 
 export interface BoardView {
 	readonly id: ContributorBoardId
+	/** The board's country; `null` on the Global board. */
+	readonly country: CountryView | null
 	/** Contributors ranked on the board, not only the rows. */
 	readonly contributors: number
 	readonly rows: readonly ContributorRowView[]
@@ -79,12 +93,21 @@ export interface RepositoryLineView {
 	readonly counted: boolean
 }
 
+/** A contributor's rank on their country's board. */
+export interface ContributorCountryView {
+	readonly code: string
+	readonly name: string
+	readonly flag: string
+	readonly rank: number
+}
+
 export interface ContributorView {
 	readonly login: string
 	readonly name: string | null
 	readonly location: string | null
 	readonly rank: number | null
-	readonly polandRank: number | null
+	/** Rank on the country board; `null` without one. */
+	readonly country: ContributorCountryView | null
 	readonly percentile: number | null
 	readonly score: number
 	/** Merged pull requests, self-merged included. */
@@ -126,6 +149,12 @@ export const toSeasonView = (entry: SeasonIndexEntry): SeasonView => ({
 	repositories: entry.repositories,
 	mergedPullRequests: entry.mergedPullRequests,
 	excludedBots: entry.excludedBots ?? null,
+	countries: (entry.countries ?? []).map(country => ({
+		code: country.code,
+		name: country.name,
+		flag: country.flag,
+		contributors: country.contributors,
+	})),
 })
 
 const toContributorRowView = (row: BoardRow): ContributorRowView => ({
@@ -141,6 +170,14 @@ const toContributorRowView = (row: BoardRow): ContributorRowView => ({
 
 export const toBoardView = (file: BoardFile, rows: number): BoardView => ({
 	id: file.board,
+	country: file.country
+		? {
+				code: file.country.code,
+				name: file.country.name,
+				flag: file.country.flag,
+				contributors: file.country.contributors,
+			}
+		: null,
 	contributors: file.contributors,
 	rows: file.rows.slice(0, rows).map(toContributorRowView),
 	availableRows: file.rows.length,
@@ -156,12 +193,35 @@ export const toRepositoryRows = (file: RepositoryBoardFile, rows: number) =>
 		stars: row.stars,
 	}))
 
-export const toContributorView = (entry: ShardEntry): ContributorView => ({
+function toContributorCountry(
+	entry: ShardEntry,
+	countries: readonly CountryView[]
+): ContributorCountryView | null {
+	const rank = entry.boards.country
+	const country = countries.find(summary => summary.code === rank?.code)
+	if (!(rank && country)) return null
+
+	return {
+		code: country.code,
+		name: country.name,
+		flag: country.flag,
+		rank: rank.rank,
+	}
+}
+
+/**
+ * A shard entry as the result card shows it. The country rank names a
+ * country of the season's `countries`; one without a board is left out.
+ */
+export const toContributorView = (
+	entry: ShardEntry,
+	countries: readonly CountryView[]
+): ContributorView => ({
 	login: entry.login,
 	name: entry.name,
 	location: entry.location,
 	rank: entry.rank,
-	polandRank: entry.boards.poland,
+	country: toContributorCountry(entry, countries),
 	percentile: entry.percentile,
 	score: entry.score,
 	mergedPullRequests: entry.mergedPullRequests + entry.selfMergedPullRequests,
@@ -178,12 +238,13 @@ export const toContributorView = (entry: ShardEntry): ContributorView => ({
 /** What a lookup shows: ranked, excluded for a reason, or not found. */
 export function toContributorOutcome(
 	login: string,
-	entry: ShardEntry | undefined
+	entry: ShardEntry | undefined,
+	countries: readonly CountryView[] = []
 ): ContributorOutcome {
 	if (!entry) return { state: 'notFound', login }
 
 	return {
 		state: entry.excluded ?? 'ranked',
-		contributor: toContributorView(entry),
+		contributor: toContributorView(entry, countries),
 	}
 }

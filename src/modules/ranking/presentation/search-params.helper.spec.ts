@@ -4,6 +4,7 @@ import {
 	toHomeSearch,
 	toLookupSearch,
 	toLookupTarget,
+	toShownBoard,
 } from './search-params.helper'
 
 describe('toHomeSearch', () => {
@@ -27,10 +28,24 @@ describe('toHomeSearch', () => {
 		)
 	})
 
-	it.each([25, 100])('accepts %d rows on the Poland board', rows => {
-		expect(toHomeSearch({ board: 'poland', rows })).toEqual({
-			board: 'poland',
+	it.each([25, 100])('accepts %d rows on a country board', rows => {
+		expect(toHomeSearch({ board: 'pl', rows })).toEqual({
+			board: 'pl',
 			rows,
+		})
+	})
+
+	it.each(['pl', 'de', 'us', 'no', 'zz'])(
+		'keeps the country code %j for the loader to check',
+		board => {
+			expect(toHomeSearch({ board }).board).toBe(board)
+		}
+	)
+
+	it('reads the Poland board of old links as the country board pl', () => {
+		expect(toHomeSearch({ board: 'poland', rows: 100 })).toEqual({
+			board: 'pl',
+			rows: 100,
 		})
 	})
 
@@ -50,13 +65,25 @@ describe('toHomeSearch', () => {
 		Number.NaN,
 		Infinity,
 	])('defaults invalid rows %j without discarding a valid board', rows => {
-		expect(toHomeSearch({ board: 'poland', rows })).toEqual({
-			board: 'poland',
+		expect(toHomeSearch({ board: 'pl', rows })).toEqual({
+			board: 'pl',
 			rows: 25,
 		})
 	})
 
-	it.each([null, true, {}, 'constructor', '__proto__', 'GLOBAL'])(
+	it.each([
+		null,
+		true,
+		{},
+		'constructor',
+		'__proto__',
+		'GLOBAL',
+		'PL',
+		'pol',
+		'p',
+		'p1',
+		'',
+	])(
 		'defaults invalid board %j without discarding a valid row count',
 		board => {
 			expect(toHomeSearch({ board, rows: 100 })).toEqual({
@@ -65,6 +92,25 @@ describe('toHomeSearch', () => {
 			})
 		}
 	)
+})
+
+describe('toShownBoard', () => {
+	const countries = [{ code: 'pl' }, { code: 'de' }]
+
+	it.each(['global', 'repositories', 'pl', 'de'])(
+		'shows %j when the season has it',
+		board => {
+			expect(toShownBoard(board, countries)).toBe(board)
+		}
+	)
+
+	it.each(['is', 'zz'])('shows Global for %j without a board', board => {
+		expect(toShownBoard(board, countries)).toBe('global')
+	})
+
+	it('shows Global for every country before country boards were published', () => {
+		expect(toShownBoard('pl', [])).toBe('global')
+	})
 })
 
 describe('toLookupSearch', () => {

@@ -1,7 +1,11 @@
 import { isoDateSchema } from '@shared/schema/iso-date.schema'
 import { seasonIdSchema } from '@shared/schema/season-id.schema'
 import { Schema } from 'effect'
-import { computedAtSchema, countSchema } from './file-fields.schema'
+import {
+	computedAtSchema,
+	countrySummarySchema,
+	countSchema,
+} from './file-fields.schema'
 
 export const seasonStatusSchema = Schema.Literals(['provisional', 'final'])
 export type SeasonStatus = typeof seasonStatusSchema.Type
@@ -24,6 +28,8 @@ export const seasonIndexEntrySchema = Schema.Struct({
 	mergedPullRequests: countSchema,
 	/** Logins excluded as bots; absent in indexes written before it was added. */
 	excludedBots: Schema.optional(countSchema),
+	/** Countries with a board, most contributors first; absent in indexes written before country boards. */
+	countries: Schema.optional(Schema.Array(countrySummarySchema)),
 })
 export type SeasonIndexEntry = typeof seasonIndexEntrySchema.Type
 

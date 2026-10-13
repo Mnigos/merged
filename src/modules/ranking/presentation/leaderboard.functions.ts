@@ -6,7 +6,8 @@ import { getRequestUrl, setResponseStatus } from '@tanstack/react-start/server'
 import { Effect, Option, Schema } from 'effect'
 import { runServer, type AppServices } from '@/runtime/app-runtime.server'
 import { Leaderboard } from '../application/leaderboard.service'
-import { contributorBoardIdSchema } from '../domain/files/board.file'
+import { toCountryBoardKey } from '../domain/files/board.file'
+import { countryCodeSchema } from '../domain/files/file-fields.schema'
 import {
 	findSeason,
 	toBoardView,
@@ -69,11 +70,15 @@ const rowCountSchema = Schema.Literals(ROW_COUNTS)
 
 const boardInputSchema = Schema.Struct({
 	season: Schema.optional(seasonIdSchema),
-	board: contributorBoardIdSchema,
+	/** `global`, or a country board by its lowercase code. */
+	board: Schema.Union([Schema.Literal('global'), countryCodeSchema]),
 	rows: Schema.optional(rowCountSchema),
 })
 
-/** A contributor board of a season, the newest by default; a 404 for an unknown season. */
+/**
+ * A contributor board of a season, the newest by default: Global or a
+ * country's; a 404 for an unknown season or a country without a board.
+ */
 export const getBoard = createServerFn({ method: 'GET' })
 	.validator(Schema.toStandardSchemaV1(boardInputSchema))
 	.handler(
@@ -86,7 +91,10 @@ export const getBoard = createServerFn({ method: 'GET' })
 						index => findSeason(index, data.season)
 					)
 					if (Option.isNone(entry)) return Option.none()
-					const file = yield* leaderboard.board(entry.value.id, data.board)
+					const file = yield* leaderboard.board(
+						entry.value.id,
+						data.board === 'global' ? 'global' : toCountryBoardKey(data.board)
+					)
 					if (Option.isNone(file)) return Option.none()
 
 					return Option.some<BoardResult>({
@@ -157,13 +165,15 @@ export const getContributorResult = createServerFn({ method: 'GET' })
 					entry.value.id,
 					login
 				)
+				const season = toSeasonView(entry.value)
 
 				return Option.some<ContributorResult>({
-					season: toSeasonView(entry.value),
+					season,
 					url,
 					outcome: toContributorOutcome(
 						login,
-						Option.getOrUndefined(contributor)
+						Option.getOrUndefined(contributor),
+						season.countries
 					),
 				})
 			})

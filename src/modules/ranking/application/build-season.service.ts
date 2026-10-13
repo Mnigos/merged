@@ -137,7 +137,7 @@ export class BuildSeason extends Context.Service<
 						const shards = buildShards({
 							seasonId,
 							scored,
-							polandRanks: boards.polandRanks,
+							countryRanks: boards.countryRanks,
 							enrichment,
 							computedAt,
 						})
@@ -150,12 +150,19 @@ export class BuildSeason extends Context.Service<
 								{ concurrency: SHARD_WRITE_CONCURRENCY }
 							)),
 							yield* store.writeBoard(boards.global),
-							yield* store.writeBoard(boards.poland),
+							...(yield* Effect.all(
+								boards.countries.map(board => store.writeBoard(board))
+							)),
 							yield* store.writeRepositoryBoard(boards.repositories),
 						]
 						const index = upsertSeasonIndex(
 							Option.getOrUndefined(yield* store.readIndex()),
-							entry
+							{
+								...entry,
+								countries: boards.countries.flatMap(board =>
+									board.country ? [board.country] : []
+								),
+							}
 						)
 
 						return {
