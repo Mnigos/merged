@@ -58,7 +58,7 @@ jobs:
     name: Ingest ${{ matrix.date }} hours ${{ matrix.part }}
     needs: prepare
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 300
     permissions:
       contents: read
     strategy:
@@ -112,8 +112,21 @@ jobs:
           ARCHIVE_BASE_URL: ${{ vars.ARCHIVE_BASE_URL }}
         run: echo "ARCHIVE_BASE_URL=$ARCHIVE_BASE_URL" >> "$GITHUB_ENV"
 
-      - name: Ingest the day part
+      - name: Ingest the day part from GH Archive
+        id: archive
+        continue-on-error: true
+        timeout-minutes: 30
         run: bun run scripts/ingest-day.ts --date "$DATE" --hours "$PART" --part --out data --storage local --concurrency 1
+
+      - name: Ingest the day part from GitHub search
+        if: steps.archive.outcome == 'failure'
+        env:
+          INGEST_SOURCE: search
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::warning::GH Archive ingest of $DATE hours $PART failed; ingesting the part from GitHub search"
+          rm -f "data/days/$DATE.part-$PART.json"
+          bun run scripts/ingest-day.ts --date "$DATE" --hours "$PART" --part --out data --storage local --concurrency 1
 
       - uses: actions/upload-artifact@v4
         with:
